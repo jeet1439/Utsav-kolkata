@@ -1,12 +1,12 @@
 import { View, Text } from 'react-native'
 import React from 'react'
 
-const AppMain = () => {
+const Rejister = () => {
   return (
     <View>
-      <Text>AppMain</Text>
+      <Text>Rejister</Text>
     </View>
   )
 }
 
-export default AppMain
+export default Rejister
