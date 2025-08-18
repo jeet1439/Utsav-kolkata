@@ -6,15 +6,13 @@ const Home = ({ navigation }) => {
   return (
     <LinearGradient
       colors={['#ff9933ff', '#ffcc33ff', '#ffd966ff']} 
-      style={styles.gradient}
-    >
+      style={styles.gradient}>
       <View style={styles.container}>
         <Text style={styles.title}>🏵️ Welcome to উৎসব কলকাতা 🏵️</Text>
         <Text style={styles.subTitle}>Find the nearest pandal to your location</Text>
         <TouchableOpacity 
           onPress={() => navigation.navigate("Finder")}
-          style={styles.button}
-        >
+          style={styles.button} >
           <Text style={styles.buttonText}>Nearby Pandle</Text>
         </TouchableOpacity>
       </View>
