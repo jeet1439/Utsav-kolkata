@@ -45,7 +45,7 @@ const Home = ({ navigation }) => {
         return false;
       }
     } else {
-      return true; // iOS handled in Info.plist
+      return true; // iOS should be handled in infoplist
     }
   };
 

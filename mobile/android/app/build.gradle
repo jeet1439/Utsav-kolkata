@@ -76,6 +76,12 @@ android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
+    
+    project.ext.vectoricons = [
+    iconFontNames: [ 'Ionicons.ttf' ] // you can add more icon sets if needed
+]
+
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 
     namespace "com.mobile"
     defaultConfig {

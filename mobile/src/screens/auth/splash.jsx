@@ -10,7 +10,7 @@ const Splash = ({ navigation }) => {
       const token = await AsyncStorage.getItem('token');
       const user  = await AsyncStorage.getItem('user');
       if (token && user ) {
-        navigation.replace('Home');
+        navigation.replace('Main', { screen: 'Home' });
       } else {
         navigation.replace('Login');
       }

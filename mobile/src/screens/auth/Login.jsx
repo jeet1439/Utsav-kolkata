@@ -41,7 +41,7 @@ const Login = ({ navigation }) => {
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
 
         alert('Login successful');
-        navigation.replace('Home');
+        navigation.replace('Main', { screen: 'Home' });
       } else {
         alert(data.message || 'Invalid credentials');
       }

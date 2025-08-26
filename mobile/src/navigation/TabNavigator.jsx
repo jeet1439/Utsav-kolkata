@@ -1,0 +1,53 @@
+// navigation/TabNavigator.js
+import React from "react";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import Home from "../screens/Home/Home.jsx";
+import Profile from "../screens/Home/Profile.jsx";
+import Settings from "../screens/Home/Settings.jsx";
+import Ionicons from "react-native-vector-icons/Ionicons";
+
+const Tab = createBottomTabNavigator();
+
+export default function TabNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+
+        tabBarStyle: {
+          backgroundColor: "#dadadaff",
+          position: "absolute",
+          bottom: 16,
+          elevation: 5,
+          borderRadius: 15,
+          marginHorizontal: 10,
+          height: 60,
+          shadowColor: "#000",
+          shadowOpacity: 0.1,
+          shadowRadius: 5,
+          shadowOffset: { width: 0, height: 4 },
+        },
+
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
+        },
+
+        tabBarIcon: ({ color, size }) => {
+          let iconName;
+          if (route.name === "Home") iconName = "home-outline";
+          else if (route.name === "Profile") iconName = "person-circle-outline";
+          else if (route.name === "Settings") iconName = "settings-outline";
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+
+        tabBarActiveTintColor: "#ff4747ff",
+        tabBarInactiveTintColor: "#5c5c5cff",
+      })}
+    >
+      <Tab.Screen name="Home" component={Home} />
+      <Tab.Screen name="Profile" component={Profile} />
+      <Tab.Screen name="Settings" component={Settings} />
+    </Tab.Navigator>
+  );
+}
