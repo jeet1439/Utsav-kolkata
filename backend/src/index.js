@@ -3,6 +3,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
+import pandleRoutes from './routes/pandal.route.js';
 
 dotenv.config();
 
@@ -12,6 +13,9 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/pandals', pandleRoutes);
+
+console.log(process.env.MONGO_URI);
 
 mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log("MongoDB connected"))

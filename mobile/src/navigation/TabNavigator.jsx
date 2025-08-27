@@ -20,7 +20,7 @@ export default function TabNavigator() {
           bottom: 16,
           elevation: 5,
           borderRadius: 15,
-          marginHorizontal: 10,
+          marginHorizontal: 15,
           height: 60,
           shadowColor: "#000",
           shadowOpacity: 0.1,

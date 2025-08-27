@@ -26,7 +26,7 @@ const Login = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const res = await fetch('http://192.168.0.100:3000/api/auth/login', {
+      const res = await fetch('http://10.33.203.63:3000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
