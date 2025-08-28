@@ -3,12 +3,14 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Geolocation from 'react-native-geolocation-service';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LeafletView } from "react-native-leaflet-view";
 
 const Home = ({ navigation }) => {
   const [token, setToken] = useState('');
   const [user, setUser] = useState(null);
   const [location, setLocation] = useState(null);
-
+  const [nearestPandle, setNearestPandle ] = useState(null);
+  
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -68,17 +70,44 @@ const Home = ({ navigation }) => {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
   };
+  
 
   return (
     <View style={styles.container}>
       {/* Top section - Map */}
       <View style={styles.topSection}>
-         <Text>Top section</Text>
+          {location && (
+            <LeafletView
+              mapCenterPosition={{ lat: location.latitude, lng: location.longitude }}
+              zoom={13}
+              mapMarkers={[
+                {
+                  id: 'currentLocation',
+                  position: { lat: location.latitude, lng: location.longitude },
+                  icon: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+                  size: [32, 32],
+                },
+              ]}
+            />
+          )}
       </View>
 
       {/* Bottom section - Data */}
       <View style={styles.bottomSection}>
         <Text style={styles.dataText}>Some data goes here</Text>
+        {location ? (
+        <View >
+          <Text >Latitude: {location.latitude}</Text>
+          <Text >Longitude: {location.longitude}</Text>
+        </View>
+      ) : (
+        <Text >Fetching location...</Text>
+      )}
+
+      <TouchableOpacity  onPress={getLocation}>
+        <Text >Refresh Location</Text>
+      </TouchableOpacity>
+
       </View>
     </View>
   );
@@ -90,7 +119,7 @@ const styles = StyleSheet.create({
   },
   topSection: {
     flex: 6,
-    backgroundColor: "green"
+    backgroundColor: "#3269a8"
   },
   map: {
     flex: 1,
