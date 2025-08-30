@@ -7,8 +7,8 @@ const router = express.Router();
 
 
 // utils/haversine.js
-export function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth's radius in km
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; 
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
 
@@ -19,40 +19,45 @@ export function getDistance(lat1, lon1, lat2, lon2) {
       Math.sin(dLon / 2) ** 2;
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Distance in km
+  return R * c; 
 }
 
 function toRad(value) {
   return (value * Math.PI) / 180;
 }
 
-
-
 router.get("/nearest", async (req, res) => {
   try {
-    const { lat, lng } = req.query;
+    const { latitude, longitude } = req.query;
 
-    if (!lat || !lng) {
+    if (!latitude || !longitude) {
       return res.status(400).json({ message: "Latitude and Longitude are required" });
     }
 
-    const pandals = await Pandal.find();
+    const allPandals = await Pandal.find({});
+    const userLat = parseFloat(latitude);
+    const userLon = parseFloat(longitude);
 
-    // Calculate distances
-    const pandalsWithDistance = pandals.map(pandal => {
-      const [pandalLng, pandalLat] = pandal.location.coordinates;
-      const distance = getDistance(parseFloat(lat), parseFloat(lng), pandalLat, pandalLng);
-      return { ...pandal.toObject(), distance };
+    // Calculate distance for each pandal
+    const pandalsWithDistance = allPandals.map(pandal => {
+      const [lon, lat] = pandal.location.coordinates; 
+      const distance = getDistance(userLat, userLon, lat, lon);
+      return { ...pandal._doc, distance };
     });
 
-    pandalsWithDistance.sort((a, b) => a.distance - b.distance);
 
-    res.json(pandalsWithDistance.slice(0, 5));
+    const nearestPandals = pandalsWithDistance
+      .filter(p => p.distance <= 50)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 5);
+
+    res.status(200).json(nearestPandals);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server Error" });
   }
 });
+
 
 
 router.post("/", async (req, res) => {

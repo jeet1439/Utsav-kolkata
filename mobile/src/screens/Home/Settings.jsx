@@ -1,29 +1,28 @@
-import { View, Text, TouchableOpacity,  StyleSheet } from 'react-native'
-import React from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const Settings = () => {
+const Settings = ({ navigation }) => { // ✅ Receive navigation here
 
-    const handleLogout = async () => {
+  const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
-      navigation.replace('Login');
+      navigation.replace('Login'); // ✅ Now it works
     } catch (err) {
       console.log(err);
       Alert.alert('Error', 'Failed to logout');
     }
   };
 
-
   return (
     <View>
       <Text>Settings</Text>
       <TouchableOpacity style={styles.button} onPress={handleLogout}>
-              <Text style={styles.buttonText}>Logout</Text>
-            </TouchableOpacity>
+        <Text style={styles.buttonText}>Logout</Text>
+      </TouchableOpacity>
     </View>
-  )
+  );
 };
 
 const styles = StyleSheet.create({
@@ -31,4 +30,4 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
 
-export default Settings
+export default Settings;

@@ -4,6 +4,7 @@ import Splash from "../screens/auth/splash.jsx";
 import Register from "../screens/auth/Register.jsx";
 import Login from "../screens/auth/Login.jsx";
 import TabNavigator from "./TabNavigator.jsx";
+import PandalDetailsScreen from "../screens/pandles/PandalDetailsScreen.jsx";
 
 const Stack = createNativeStackNavigator();
 
@@ -15,6 +16,8 @@ export default function StackNavigator() {
       <Stack.Screen name="Login" component={Login} options={{ headerShown: false }} />
       {/* Tab Navigator replaces Home */}
       <Stack.Screen name="Main" component={TabNavigator} options={{ headerShown: false }} />
-    </Stack.Navigator>
+
+      <Stack.Screen name = "PandalDetails" component={PandalDetailsScreen} options={{ headerShown: false }} />
+    </Stack.Navigator> 
   );
 }
