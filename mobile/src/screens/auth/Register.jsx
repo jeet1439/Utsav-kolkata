@@ -34,7 +34,7 @@ const Register = ({ navigation }) => {
     }
 
     try {
-      const res = await fetch('http://192.168.0.9:3000/api/auth/signup', {
+      const res = await fetch('http://192.168.0.100:3000/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password }),
@@ -48,7 +48,7 @@ const Register = ({ navigation }) => {
        await AsyncStorage.setItem('token', data.token);
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
 
-        navigation.replace('Home');;
+       navigation.replace('Main', { screen: 'Home' });
       } else {
         alert(data.message || 'Something went wrong');
       }

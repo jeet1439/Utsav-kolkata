@@ -1,14 +1,15 @@
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const Settings = ({ navigation }) => { // ✅ Receive navigation here
+const Settings = ({ navigation }) => { 
 
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
-      navigation.replace('Login'); // ✅ Now it works
+      navigation.replace('Login');
     } catch (err) {
       console.log(err);
       Alert.alert('Error', 'Failed to logout');
@@ -16,12 +17,12 @@ const Settings = ({ navigation }) => { // ✅ Receive navigation here
   };
 
   return (
-    <View>
+    <SafeAreaView>
       <Text>Settings</Text>
       <TouchableOpacity style={styles.button} onPress={handleLogout}>
         <Text style={styles.buttonText}>Logout</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 

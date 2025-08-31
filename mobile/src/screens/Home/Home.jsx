@@ -71,7 +71,7 @@ const fetchNearestPandleData = async () => {
     if (!location) return;
 
     const res = await fetch(
-      `http://192.168.0.9:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`
+      `http://192.168.0.100:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`
     );
     const data = await res.json();
     console.log("Nearest Pandals:", data);
@@ -103,7 +103,7 @@ console.log(nearestPandle);
       {location && (
         <LeafletView
           mapCenterPosition={{ lat: location.latitude, lng: location.longitude }}
-          zoom={12}
+          zoom={14}
           mapMarkers={[
             {
               id: "currentLocation",

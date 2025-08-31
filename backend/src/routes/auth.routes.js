@@ -31,14 +31,15 @@ router.post("/signup", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     
-    const dicebearUrl = `https://api.dicebear.com/9.x/adventurer/svg?seed=${username}`;
+    const dicebearUrl = `https://res.cloudinary.com/dzwismxgx/image/upload/v1755195870/istockphoto-1495088043-612x612_riz8ns.jpg`;
 
     const user = new User({
         email,
         username,
         password: hashedPassword,
         profileImage: [dicebearUrl],
-
+        bio: "",            
+        featuredImages: []
     });
 
     await user.save();
@@ -51,6 +52,8 @@ router.post("/signup", async (req, res) => {
         username: user.username,
         email: user.email,
         profileImage: user.profileImage,
+        bio: user.bio,
+        featuredImages: user.featuredImages
         },
     });
 
@@ -86,6 +89,8 @@ router.post("/login", async (req, res) => {
         username: user.username,
         email: user.email,
         profileImage: user.profileImage,
+        bio: user.bio,
+        featuredImages: user.featuredImages
         },
     });
 

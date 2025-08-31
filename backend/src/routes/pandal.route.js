@@ -62,7 +62,7 @@ router.get("/nearest", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { title, about, pictures, latitude, longitude } = req.body;
+    const { title, about, pictures, latitude, longitude, nearestMetro } = req.body;
 
     if (!title || !about || !pictures || !latitude || !longitude) {
       return res.status(400).json({ message: "All fields are required" });
@@ -72,6 +72,7 @@ router.post("/", async (req, res) => {
       title,
       about,
       pictures,
+      nearestMetro,
       location: {
         type: "Point",
         coordinates: [parseFloat(longitude), parseFloat(latitude)]

@@ -18,6 +18,12 @@ const PandalSchema = new mongoose.Schema({
       required: true
     }
   ],
+  nearestMetro: [
+    {
+      type: String, 
+      trim: true
+    }
+  ],
   location: {
     type: {
       type: String,
