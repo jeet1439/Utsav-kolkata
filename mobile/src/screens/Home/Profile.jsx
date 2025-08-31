@@ -1,26 +1,121 @@
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, FlatList, PermissionsAndroid, Platform} from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { launchImageLibrary } from "react-native-image-picker";
+import Modal from "react-native-modal";
+import { useContext } from 'react';
+import { UserContext } from '../../contexts/userContexts.js';
+import RNFS from 'react-native-fs';
+import axios from 'axios';
+import { Dimensions } from 'react-native';
+
+const screenWidth = Dimensions.get('window').width - 40;
+const numColumns = 3;
+const imageMargin = 5; 
+
+const imageWidth = (screenWidth - (numColumns + 1) * imageMargin) / numColumns;
 
 const Profile = () => {
-  const [user, setUser] = useState(null);
+  const { user, setUser } = useContext(UserContext);
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null); 
+  const [loading , setLoading] = useState(false);
+  
 
-  const fetchUserData = async () => {
+  const requestGalleryPermission = async () => {
+  if (Platform.OS === "android") {
     try {
-      const storedUser = await AsyncStorage.getItem('user');
-      setUser(storedUser ? JSON.parse(storedUser) : null);
+      let permission;
+
+      if (Platform.Version >= 33) {
+        permission = PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES;
+      } else {
+        permission = PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+      }
+
+      const granted = await PermissionsAndroid.request(permission, {
+        title: "Gallery Permission",
+        message: "We need access to your gallery to upload featured images",
+        buttonPositive: "OK",
+      });
+
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
-      console.log(err);
+      console.warn(err);
+      return false;
     }
+  }
+  return true; 
+};
+
+const openGallery = async () => {
+  const hasPermission = await requestGalleryPermission();
+  if (!hasPermission) {
+    alert("Permission denied");
+    return;
+  }
+
+  launchImageLibrary({ mediaType: "photo", selectionLimit: 1 }, (response) => {
+    if (response.didCancel) return;
+    if (response.errorCode) {
+      console.log("Image Picker Error: ", response.errorMessage);
+      return;
+    }
+
+    if (response.assets && response.assets.length > 0) {
+      const selectedUri = response.assets[0].uri;
+      setSelectedImage(selectedUri); 
+    }
+  });
+};
+
+const handlePost = async () => {
+  if (!selectedImage) {
+    alert("Please select an image first");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const token = await AsyncStorage.getItem("token");
+
+    const formData = new FormData();
+    formData.append("image", {
+      uri: selectedImage,
+      name: `featured.${selectedImage.split('.').pop()}`,
+      type: `image/${selectedImage.split('.').pop()}`,
+    });
+
+    const res = await axios.post(
+      "http://192.168.0.100:3000/api/user/featured-image",
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    setUser(res.data);
+    setLoading(false);
+    setSelectedImage(null);
+    setModalVisible(false);
+  } catch (error) {
+    console.error("Upload failed:", error);
+    alert("Failed to upload image");
+    setLoading(false);
+  }
+};
+
+const closeModal = () => {
+    setModalVisible(false);
+    setSelectedImage(null); 
   };
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-  
-  
   if (!user) {
     return (
       <SafeAreaView style={styles.center}>
@@ -32,9 +127,7 @@ const Profile = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Header row */}
         <View style={styles.headerRow}>
-          {/* Left: Profile pic + username + button */}
           <View style={styles.leftSection}>
             <Image
               source={{ uri: user.profileImage?.[0] }}
@@ -49,7 +142,7 @@ const Profile = () => {
                 </TouchableOpacity>
                </View>
              
-              <TouchableOpacity style={styles.btnStyle}>
+              <TouchableOpacity style={styles.btnStyle} onPress={() => setModalVisible(true)}>
                 <Text style={styles.uploadBtnTxt}>Add Featured Image +</Text>
               </TouchableOpacity>
             </View>
@@ -83,7 +176,56 @@ const Profile = () => {
             <Text style={{ color: '#999', fontSize: 14 }}>No featured images yet</Text>
           )}
         </View>
+       
 
+       <Modal
+          isVisible={isModalVisible}
+          style={styles.modal}
+          onBackdropPress={closeModal}
+          swipeDirection="down"
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Upload Featured Image</Text>
+
+            {selectedImage ? (
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.previewImage}
+              />
+            ) : (
+              <View style={styles.previewPlaceholder}>
+                <Ionicons name="image-outline" size={40} color="#ccc" onPress={openGallery} />
+                <Text style={{ color: "#aaa", marginTop: 5 }}  onPress={openGallery}>No Image Selected</Text>
+              </View>
+            )}
+
+            {/* Pick Image Button */}
+            {/* <TouchableOpacity style={styles.modalButton} onPress={openGallery}>
+              <Ionicons name="images-outline" size={20} color="#fff" />
+              <Text style={styles.modalButtonText}>Pick from Gallery</Text>
+            </TouchableOpacity> */}
+
+            {/* Post Button */}
+            <TouchableOpacity
+            style={[
+              styles.modalButton,
+              { marginTop: 10 },
+              loading && { opacity: 0.6 } // make button look disabled
+            ]}
+            onPress={handlePost}
+            disabled={loading} // disables touch when loading
+          > 
+            {loading ? (
+              <Text style={styles.modalButtonText}>Adding...</Text>
+            ) : (
+              <>
+                <Text style={styles.modalButtonText}>Add Featured</Text>
+                <Ionicons name="checkmark-outline" size={20} color="#fff" />
+              </>
+            )}
+          </TouchableOpacity>
+          </View>
+        </Modal>
     </SafeAreaView>
   );
 };
@@ -149,14 +291,59 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   featuredImage: {
-  width: 120, 
-  height: 120,
+  width: imageWidth,
+  height: imageWidth,
   borderRadius: 5,
-  margin: 5,
+  marginHorizontal: imageMargin / 2,
+  marginVertical: imageMargin / 2,
 },
 uploadBtnTxt: {
   fontSize: 15,
   fontWeight: "400"
+},
+  modal: { 
+    justifyContent: "flex-end",
+     margin: 0 
+    },
+  modalContent: { 
+    backgroundColor: "#fff", 
+    padding: 20, 
+    borderTopLeftRadius: 20, 
+    borderTopRightRadius: 20 
+  },
+  modalTitle: { 
+    fontSize: 18, 
+    fontWeight: "bold", 
+    marginBottom: 15 
+  },
+  modalButton: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    justifyContent: "center",
+    backgroundColor: "#ff6600ff", 
+    padding: 12, 
+    borderRadius: 10 
+  },
+  modalButtonText: { 
+    color: "#fff", 
+    marginLeft: 8, 
+    fontSize: 16 ,
+  },
+previewImage: {
+  width: "100%",
+  height: 200,
+  borderRadius: 10,
+  marginBottom: 15,
+},
+previewPlaceholder: {
+  width: "100%",
+  height: 200,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "#ccc",
+  justifyContent: "center",
+  alignItems: "center",
+  marginBottom: 15,
 }
 });
 

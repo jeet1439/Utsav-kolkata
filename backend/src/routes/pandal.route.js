@@ -1,6 +1,7 @@
 // routes/pandalRoutes.js
 import express from "express";
 import Pandal from "../model/pandal.modal.js";
+import authMiddleware from "../middlewares/authMiddleware.js";
 
 
 const router = express.Router();
@@ -26,7 +27,7 @@ function toRad(value) {
   return (value * Math.PI) / 180;
 }
 
-router.get("/nearest", async (req, res) => {
+router.get("/nearest", authMiddleware, async (req, res) => {
   try {
     const { latitude, longitude } = req.query;
 
