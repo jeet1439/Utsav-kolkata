@@ -47,4 +47,27 @@ router.post(
   }
 );
 
+router.post("/update-bio", async (req, res) => {
+  try {
+    const { userId, bio } = req.body;
+
+    if (!userId) return res.json({ success: false, message: "User ID required" });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { bio },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, message: "Bio updated successfully", user: updatedUser });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 export default router;

@@ -105,7 +105,7 @@ console.log(nearestPandle);
       {location && (
         <LeafletView
           mapCenterPosition={{ lat: location.latitude, lng: location.longitude }}
-          zoom={13}
+          zoom={15}
           mapMarkers={[
             {
               id: "currentLocation",

@@ -1,4 +1,4 @@
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, FlatList, PermissionsAndroid, Platform} from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, FlatList, PermissionsAndroid, Platform, TextInput} from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,7 +22,9 @@ const Profile = () => {
   const [isModalVisible, setModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null); 
   const [loading , setLoading] = useState(false);
-  
+  const [isBioModalVisible, setBioModalVisible] = useState(false);
+  const [bioText, setBioText] = useState(user.bio || "");
+  const [loadingBio, setLoadingBio] = useState(false);
 
   const requestGalleryPermission = async () => {
   if (Platform.OS === "android") {
@@ -116,6 +118,41 @@ const closeModal = () => {
     setSelectedImage(null); 
   };
 
+const handleBio = () => {
+
+}
+ const openBioModal = () => {
+    setBioText(user.bio || "");
+    setBioModalVisible(true);
+  };
+
+  const closeBioModal = () => {
+    setBioModalVisible(false);
+  };
+
+  const handleSaveBio = async () => {
+    try {
+      setLoadingBio(true);
+      const res = await axios.post("http://192.168.0.100:3000/api/user/update-bio", {
+        userId: user._id,
+        bio: bioText.trim(),
+      });
+
+      if (res.data.success) {
+        setUser((prev) => ({ ...prev, bio: bioText.trim() }));
+        closeBioModal();
+      } else {
+        alert("Failed to update bio");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error updating bio");
+    } finally {
+      setLoadingBio(false);
+    }
+  };
+
+
   if (!user) {
     return (
       <SafeAreaView style={styles.center}>
@@ -152,10 +189,55 @@ const closeModal = () => {
 
         {/* Bio */}
         {user.bio ? (
-          <Text style={styles.bio}>{user.bio}</Text>
+          <Text onLongPress={openBioModal} style={styles.bio}>{user.bio}</Text>
         ) : (
-          <Text style={styles.noBio}>No bio added yet</Text>
+          <Text onLongPress={openBioModal} style={styles.noBio}>No bio added yet</Text>
         )}
+
+        <Modal
+        isVisible={isBioModalVisible}
+        onBackdropPress={closeBioModal}
+        style={{ justifyContent: "center", margin: 20 }}
+      >
+        <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 10 }}>
+          <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
+            {user.bio ? "Update Bio" : "Add Bio"}
+          </Text>
+
+          <TextInput
+            value={bioText}
+            onChangeText={setBioText}
+            placeholder="Write something about yourself..."
+            style={{
+              borderColor: "#ccc",
+              borderWidth: 1,
+              borderRadius: 8,
+              padding: 10,
+              height: 100,
+              textAlignVertical: "top",
+            }}
+            multiline
+          />
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#ff5100ff",
+              padding: 12,
+              marginTop: 15,
+              borderRadius: 8,
+              alignItems: "center",
+              opacity: loadingBio ? 0.6 : 1,
+            }}
+            disabled={loadingBio}
+            onPress={handleSaveBio}
+          >
+            <Text style={{ color: "#fff", fontWeight: "bold" }}>
+              {loadingBio ? "Saving..." : "Save"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
       </View>
 
        <View style={{ marginVertical: 20 }}>
