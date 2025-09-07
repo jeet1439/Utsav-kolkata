@@ -189,7 +189,7 @@ const handleBio = () => {
 
         {/* Bio */}
         {user.bio ? (
-          <Text onLongPress={openBioModal} style={styles.bio}>{user.bio}</Text>
+          <Text onLongPress={openBioModal} style={styles.bio}>{user.bio || ""}</Text>
         ) : (
           <Text onLongPress={openBioModal} style={styles.noBio}>No bio added yet</Text>
         )}

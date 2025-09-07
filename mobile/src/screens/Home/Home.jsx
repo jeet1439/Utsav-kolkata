@@ -143,7 +143,7 @@ console.log(nearestPandle);
         </TouchableOpacity>
       </View>
         {/* <Text style={styles.dataText}> </Text> */}
-       <View  style={{ height: 260, paddingBottom: 60} }>
+       <View  style={{ height: 300, paddingBottom: 60} }>
         {nearestPandle && nearestPandle.length > 0 ? (
           <FlatList
             data={nearestPandle}
