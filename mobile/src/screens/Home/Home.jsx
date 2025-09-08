@@ -71,7 +71,7 @@ const fetchNearestPandleData = async () => {
     if (!location) return;
 
     const res = await fetch(
-      `http://192.168.0.100:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,{
+      `http://192.168.0.7:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,{
          headers: { Authorization: `Bearer ${token}` },
       }
     );

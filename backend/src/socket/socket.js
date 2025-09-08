@@ -1,29 +1,62 @@
+// socket/socket.js
 import { Server } from "socket.io";
+import mongoose from "mongoose";
+import User from "../model/user.model.js";
 
 let onlineUsers = {};
 
 export default function socketHandler(server) {
   const io = new Server(server, {
-    cors: { origin: "*" },
+    cors: {
+      origin: "*", 
+      methods: ["GET", "POST"],
+    },
   });
 
   io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
+    console.log("Socket connected:", socket.id);
 
-    socket.on("user-online", (username) => {
-      onlineUsers[socket.id] = username;
-      io.emit("online-users", Object.values(onlineUsers));
+    socket.on("user_online", async (userId) => {
+      if (!userId || !mongoose.Types.ObjectId.isValid(userId)) return;
+
+      onlineUsers[socket.id] = userId;
+
+      const usersData = await User.find({
+        _id: { $in: Object.values(onlineUsers) },
+      }).select("username profileImage");
+
+      // Map to send only latest profile image
+      const formattedUsers = usersData.map(user => ({
+        _id: user._id,
+        username: user.username,
+        profileImage:
+          Array.isArray(user.profileImage) && user.profileImage.length > 0
+            ? user.profileImage[user.profileImage.length - 1] 
+            : "https://via.placeholder.com/50", 
+      }));
+
+      io.emit("online_users", formattedUsers);
     });
 
-    socket.on("send-message", (data) => {
-      io.emit("receive-message", data);
-    });
-
-    socket.on("disconnect", () => {
-      const username = onlineUsers[socket.id];
+    socket.on("disconnect", async () => {
       delete onlineUsers[socket.id];
-      io.emit("online-users", Object.values(onlineUsers));
-      console.log(`User disconnected: ${username}`);
+
+      const usersData = await User.find({
+        _id: { $in: Object.values(onlineUsers) },
+      }).select("username profileImage");
+
+      const formattedUsers = usersData.map(user => ({
+        _id: user._id,
+        username: user.username,
+        profileImage:
+          Array.isArray(user.profileImage) && user.profileImage.length > 0
+            ? user.profileImage[user.profileImage.length - 1]
+            : "https://via.placeholder.com/50",
+      }));
+
+      io.emit("online_users", formattedUsers);
+
+      console.log("Socket disconnected:", socket.id);
     });
   });
 }

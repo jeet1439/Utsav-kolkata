@@ -23,7 +23,7 @@ const Profile = () => {
   const [selectedImage, setSelectedImage] = useState(null); 
   const [loading , setLoading] = useState(false);
   const [isBioModalVisible, setBioModalVisible] = useState(false);
-  const [bioText, setBioText] = useState(user.bio || "");
+  const [bioText, setBioText] = useState("");
   const [loadingBio, setLoadingBio] = useState(false);
 
   const requestGalleryPermission = async () => {
@@ -92,7 +92,7 @@ const handlePost = async () => {
     });
 
     const res = await axios.post(
-      "http://192.168.0.100:3000/api/user/featured-image",
+      "http://192.168.0.7:3000/api/user/featured-image",
       formData,
       {
         headers: {
@@ -118,6 +118,12 @@ const closeModal = () => {
     setSelectedImage(null); 
   };
 
+useEffect(() => {
+  if (user?.bio) {
+    setBioText(user.bio);
+  }
+}, [user]);
+
 const handleBio = () => {
 
 }
@@ -133,7 +139,7 @@ const handleBio = () => {
   const handleSaveBio = async () => {
     try {
       setLoadingBio(true);
-      const res = await axios.post("http://192.168.0.100:3000/api/user/update-bio", {
+      const res = await axios.post("http://192.168.0.7:3000/api/user/update-bio", {
         userId: user._id,
         bio: bioText.trim(),
       });
