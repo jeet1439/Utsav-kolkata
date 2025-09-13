@@ -2,13 +2,15 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { useUserStore } from '../../store/userStore';
 const Settings = ({ navigation }) => { 
 
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
+      const { clearUser } = useUserStore.getState();
+      clearUser();
+
       navigation.replace('Login');
     } catch (err) {
       console.log(err);

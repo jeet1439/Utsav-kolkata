@@ -5,7 +5,6 @@ import Home from "../screens/Home/Home.jsx";
 import Profile from "../screens/Home/Profile.jsx";
 import Settings from "../screens/Home/Settings.jsx";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import People from '../screens/Home/People.jsx';
 
 const Tab = createBottomTabNavigator();
 
@@ -14,32 +13,30 @@ export default function TabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-
+        tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: "#dadadaff",
+          backgroundColor: "#ff6868ff",
           position: "absolute",
+          height: 70,
         },
 
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "600",
+        tabBarIconStyle: {
+          marginTop: 10, 
         },
 
         tabBarIcon: ({ color, size }) => {
           let iconName;
           if (route.name === "Home") iconName = "home-outline";
-          else if (route.name === "People") iconName = "people-outline";
           else if (route.name === "Profile") iconName = "person-circle-outline";
           else if (route.name === "Settings") iconName = "settings-outline";
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={30} color={color} />;
         },
 
-        tabBarActiveTintColor: "#ff4747ff",
+        tabBarActiveTintColor: "#fff",
         tabBarInactiveTintColor: "#5c5c5cff",
       })}
     >
       <Tab.Screen name="Home" component={Home} />
-      <Tab.Screen name="People" component={People} />
       <Tab.Screen name="Profile" component={Profile}/>
       <Tab.Screen name="Settings" component={Settings} />
     </Tab.Navigator>

@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserStore} from '../../store/userStore.js';
 
 const Login = ({ navigation }) => {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
+  const { setUser } = useUserStore();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -26,20 +28,18 @@ const Login = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const res = await fetch('http://192.168.0.7:3000/api/auth/login', {
+      const res = await fetch('http://192.168.0.100:3000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-
+      
       const data = await res.json();
       setLoading(false);
 
       if (res.ok) {
-
         await AsyncStorage.setItem('token', data.token);
-        await AsyncStorage.setItem('user', JSON.stringify(data.user));
-
+        setUser(data.user);
         alert('Login successful');
         navigation.replace('Main', { screen: 'Home' });
       } else {

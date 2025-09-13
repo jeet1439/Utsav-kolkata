@@ -10,6 +10,8 @@ import { UserContext } from '../../contexts/userContexts.js';
 import RNFS from 'react-native-fs';
 import axios from 'axios';
 import { Dimensions } from 'react-native';
+import { useUserStore } from '../../store/userStore.js';
+import chatIcon from '../../assets/chatIcon.png';
 
 const screenWidth = Dimensions.get('window').width - 40;
 const numColumns = 3;
@@ -18,14 +20,16 @@ const imageMargin = 5;
 const imageWidth = (screenWidth - (numColumns + 1) * imageMargin) / numColumns;
 
 const Profile = () => {
-  const { user, setUser } = useContext(UserContext);
+  // const { user, setUser } = useContext(UserContext);
   const [isModalVisible, setModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null); 
   const [loading , setLoading] = useState(false);
   const [isBioModalVisible, setBioModalVisible] = useState(false);
   const [bioText, setBioText] = useState("");
   const [loadingBio, setLoadingBio] = useState(false);
-
+  
+  const { user , setUser } = useUserStore();
+  
   const requestGalleryPermission = async () => {
   if (Platform.OS === "android") {
     try {
@@ -50,28 +54,28 @@ const Profile = () => {
     }
   }
   return true; 
-};
+  };
 
-const openGallery = async () => {
-  const hasPermission = await requestGalleryPermission();
-  if (!hasPermission) {
-    alert("Permission denied");
-    return;
-  }
-
-  launchImageLibrary({ mediaType: "photo", selectionLimit: 1 }, (response) => {
-    if (response.didCancel) return;
-    if (response.errorCode) {
-      console.log("Image Picker Error: ", response.errorMessage);
+  const openGallery = async () => {
+    const hasPermission = await requestGalleryPermission();
+    if (!hasPermission) {
+      alert("Permission denied");
       return;
     }
 
-    if (response.assets && response.assets.length > 0) {
-      const selectedUri = response.assets[0].uri;
-      setSelectedImage(selectedUri); 
-    }
-  });
-};
+    launchImageLibrary({ mediaType: "photo", selectionLimit: 1 }, (response) => {
+      if (response.didCancel) return;
+      if (response.errorCode) {
+        console.log("Image Picker Error: ", response.errorMessage);
+        return;
+      }
+
+      if (response.assets && response.assets.length > 0) {
+        const selectedUri = response.assets[0].uri;
+        setSelectedImage(selectedUri); 
+      }
+    });
+  };
 
 const handlePost = async () => {
   if (!selectedImage) {
@@ -92,7 +96,7 @@ const handlePost = async () => {
     });
 
     const res = await axios.post(
-      "http://192.168.0.7:3000/api/user/featured-image",
+      "http://192.168.0.100:3000/api/user/featured-image",
       formData,
       {
         headers: {
@@ -124,9 +128,7 @@ useEffect(() => {
   }
 }, [user]);
 
-const handleBio = () => {
 
-}
  const openBioModal = () => {
     setBioText(user.bio || "");
     setBioModalVisible(true);
@@ -139,7 +141,7 @@ const handleBio = () => {
   const handleSaveBio = async () => {
     try {
       setLoadingBio(true);
-      const res = await axios.post("http://192.168.0.7:3000/api/user/update-bio", {
+      const res = await axios.post("http://192.168.0.100:3000/api/user/update-bio", {
         userId: user._id,
         bio: bioText.trim(),
       });
@@ -166,25 +168,24 @@ const handleBio = () => {
       </SafeAreaView>
     );
   }
-
   return (
     <SafeAreaView style={styles.container}>
       <View contentContainerStyle={{ paddingBottom: 40 }}>
         <View style={styles.headerRow}>
           <View style={styles.leftSection}>
             <Image
-              source={{ uri: user.profileImage?.[0] }}
+              source={{ uri: user?.profileImage?.[0] }}
               style={styles.profileImage}
             />
             <View style={styles.usernameContainer}>
                <View style={{flexDirection: "row", justifyContent: "space-between"}}>
-                 <Text style={styles.username}>{user.username}</Text>
+                 <Text style={styles.username}>{user?.username}</Text>
                  <Text style={{ marginVertical: 5}}>0 views</Text>
-                 <TouchableOpacity>
-                  <Ionicons name="create-outline" size={24} color="gray" />
-                </TouchableOpacity>
+                 <TouchableOpacity onPress={() => console.log("Pressed!")}>
+                       <Image source={chatIcon}
+                              style={{ width: 35, height: 35, }}/>
+                  </TouchableOpacity>
                </View>
-             
               <TouchableOpacity style={styles.btnStyle} onPress={() => setModalVisible(true)}>
                 <Text style={styles.uploadBtnTxt}>Add Featured Image +</Text>
               </TouchableOpacity>
@@ -194,8 +195,8 @@ const handleBio = () => {
         </View>
 
         {/* Bio */}
-        {user.bio ? (
-          <Text onLongPress={openBioModal} style={styles.bio}>{user.bio || ""}</Text>
+        {user?.bio ? (
+          <Text onLongPress={openBioModal} style={styles.bio}>{user?.bio || ""}</Text>
         ) : (
           <Text onLongPress={openBioModal} style={styles.noBio}>No bio added yet</Text>
         )}
@@ -207,7 +208,7 @@ const handleBio = () => {
       >
         <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 10 }}>
           <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
-            {user.bio ? "Update Bio" : "Add Bio"}
+            {user?.bio ? "Update Bio" : "Add Bio"}
           </Text>
 
           <TextInput
@@ -247,9 +248,9 @@ const handleBio = () => {
       </View>
 
        <View style={{ marginVertical: 20 }}>
-          {user.featuredImages && user.featuredImages.length > 0 ? (
+          {user?.featuredImages && user?.featuredImages.length > 0 ? (
             <FlatList
-              data={user.featuredImages}
+              data={user?.featuredImages}
               keyExtractor={(item, index) => index.toString()}
               numColumns={3} 
               renderItem={({ item }) => (
@@ -391,7 +392,7 @@ uploadBtnTxt: {
 },
   modal: { 
     justifyContent: "flex-end",
-     margin: 0 
+     margin: 0
     },
   modalContent: { 
     backgroundColor: "#fff", 

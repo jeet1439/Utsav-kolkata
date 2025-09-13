@@ -2,27 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform, PermissionsAndroid, StatusBar, ActivityIndicator, Image, FlatList } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Geolocation from 'react-native-geolocation-service';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LeafletView } from "react-native-leaflet-view";
 
 const Home = ({ navigation }) => {
-  const [token, setToken] = useState('');
   const [user, setUser] = useState(null);
   const [location, setLocation] = useState(null);
   const [nearestPandle, setNearestPandle] = useState(null);
+  const [token, setToken] = useState(null);
 
-  const fetchUserData = async () => {
-    try {
-      const storedToken = await AsyncStorage.getItem('token');
-      const storedUser = await AsyncStorage.getItem('user');
-
-      setToken(storedToken || '');
-      setUser(storedUser ? JSON.parse(storedUser) : null);
-    } catch (err) {
-      console.log(err);
-      Alert.alert('Error', 'Failed to load user data');
-    }
+  useEffect(() => {
+  const loadToken = async () => {
+    const storedToken = await AsyncStorage.getItem('token');
+    setToken(storedToken);
   };
+  loadToken();
+}, []);
 
   const requestLocationPermission = async () => {
     if (Platform.OS === 'android') {
@@ -66,25 +60,24 @@ const Home = ({ navigation }) => {
     );
   };
   
-const fetchNearestPandleData = async () => {
-  try {
-    if (!location) return;
+  const fetchNearestPandleData = async () => {
+    try {
+      if (!location) return;
 
-    const res = await fetch(
-      `http://192.168.0.7:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,{
-         headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    const data = await res.json();
-    console.log("Nearest Pandals:", data);
-    setNearestPandle(data);
-  } catch (error) {
-    console.error(error);
-  }
-};
+      const res = await fetch(
+        `http://192.168.0.100:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,{
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const data = await res.json();
+      console.log("Nearest Pandals:", data);
+      setNearestPandle(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   useEffect(() => {
-    fetchUserData();
     getLocation();
   }, []);
   
@@ -92,7 +85,7 @@ const fetchNearestPandleData = async () => {
   if (location) {
     fetchNearestPandleData();
   }
-}, [location]);
+}, [location, token]);
 
 console.log("The nearest pandle data is:")
 console.log(nearestPandle);
