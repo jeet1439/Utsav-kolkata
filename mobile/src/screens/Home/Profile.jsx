@@ -5,8 +5,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { launchImageLibrary } from "react-native-image-picker";
 import Modal from "react-native-modal";
-import { useContext } from 'react';
-import { UserContext } from '../../contexts/userContexts.js';
 import RNFS from 'react-native-fs';
 import axios from 'axios';
 import { Dimensions } from 'react-native';

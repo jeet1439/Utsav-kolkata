@@ -17,11 +17,11 @@ export default function TabNavigator() {
         tabBarStyle: {
           backgroundColor: "#ff6868ff",
           position: "absolute",
-          height: 70,
+          height: 55,
         },
 
         tabBarIconStyle: {
-          marginTop: 10, 
+          marginTop: 6, 
         },
 
         tabBarIcon: ({ color, size }) => {

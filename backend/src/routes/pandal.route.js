@@ -3,9 +3,7 @@ import express from "express";
 import Pandal from "../model/pandal.modal.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 
-
 const router = express.Router();
-
 
 // utils/haversine.js
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -58,6 +56,64 @@ router.get("/nearest", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 });
+
+
+// router.post(
+//   "/pandal/:pandalId/featured-media",
+//   authMiddleware,
+//   upload.single("media"), // 'media' can be image or video
+//   async (req, res) => {
+//     try {
+//       const { pandalId } = req.params;
+
+//       if (!req.file) {
+//         return res.status(400).json({ message: "File is required" });
+//       }
+
+//       // Detect if file is image or video
+//       const isVideo = req.file.mimetype.startsWith("video/");
+
+//       const uploadStream = cloudinary.uploader.upload_stream(
+//         {
+//           folder: "UtsavKolkata/featured",
+//           resource_type: isVideo ? "video" : "image"
+//         },
+//         async (error, result) => {
+//           if (error) {
+//             console.error("Cloudinary error:", error);
+//             return res.status(500).json({ message: "Cloud upload failed" });
+//           }
+
+//           const mediaUrl = result.secure_url;
+
+//           const updatedPandal = await Pandal.findByIdAndUpdate(
+//             pandalId,
+//             {
+//               $push: {
+//                 featuredPictures: {
+//                   url: mediaUrl,
+//                   userId: req.user._id
+//                 }
+//               }
+//             },
+//             { new: true }
+//           ).populate("featuredPictures.userId", "name email");
+
+//           res.status(201).json(updatedPandal);
+//         }
+//       );
+
+//       uploadStream.end(req.file.buffer);
+//     } catch (error) {
+//       console.error("Error uploading featured media:", error);
+//       res.status(500).json({ message: "Server error" });
+//     }
+//   }
+// );
+
+
+
+
 
 
 

@@ -34,7 +34,23 @@ const PandalSchema = new mongoose.Schema({
       type: [Number], // [longitude, latitude]
       required: true
     }
-  }
+  },
+  featuredPictures: [
+    {
+      url: {
+        type: String,
+        required: true
+      },
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true
+      },
+      caption: {
+        type: String
+      }
+    }
+  ],
 }, {
   timestamps: true
 });
