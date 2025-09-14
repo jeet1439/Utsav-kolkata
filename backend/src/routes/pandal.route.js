@@ -2,23 +2,26 @@
 import express from "express";
 import Pandal from "../model/pandal.modal.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
-
+import multer from "multer";
+import cloudinary from "../lib/cloudConfig.js";
 const router = express.Router();
 
-// utils/haversine.js
+const upload = multer({ storage: multer.memoryStorage() });
+
+
 function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; 
+  const R = 6371;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
 
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) ** 2;
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; 
+  return R * c;
 }
 
 function toRad(value) {
@@ -39,7 +42,7 @@ router.get("/nearest", authMiddleware, async (req, res) => {
 
     // Calculate distance for each pandal
     const pandalsWithDistance = allPandals.map(pandal => {
-      const [lon, lat] = pandal.location.coordinates; 
+      const [lon, lat] = pandal.location.coordinates;
       const distance = getDistance(userLat, userLon, lat, lon);
       return { ...pandal._doc, distance };
     });
@@ -58,62 +61,50 @@ router.get("/nearest", authMiddleware, async (req, res) => {
 });
 
 
-// router.post(
-//   "/pandal/:pandalId/featured-media",
-//   authMiddleware,
-//   upload.single("media"), // 'media' can be image or video
-//   async (req, res) => {
-//     try {
-//       const { pandalId } = req.params;
+router.post("/:pandalId/featured-image", authMiddleware, upload.single("image"), async (req, res) => {
+  try {
+    const { pandalId } = req.params;
+    const { caption } = req.body;
 
-//       if (!req.file) {
-//         return res.status(400).json({ message: "File is required" });
-//       }
+    if (!req.file) {
+      return res.status(400).json({ message: "Image is required" });
+    }
 
-//       // Detect if file is image or video
-//       const isVideo = req.file.mimetype.startsWith("video/");
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: "UtsavKolkata" },
+      async (error, result) => {
+        if (error) {
+          console.error("Cloudinary error:", error);
+          return res.status(500).json({ message: "Cloud upload failed" });
+        }
 
-//       const uploadStream = cloudinary.uploader.upload_stream(
-//         {
-//           folder: "UtsavKolkata/featured",
-//           resource_type: isVideo ? "video" : "image"
-//         },
-//         async (error, result) => {
-//           if (error) {
-//             console.error("Cloudinary error:", error);
-//             return res.status(500).json({ message: "Cloud upload failed" });
-//           }
+        const imageUrl = result.secure_url;
 
-//           const mediaUrl = result.secure_url;
+        const updatedPandal = await Pandal.findByIdAndUpdate(
+          pandalId,
+          {
+            $push: {
+              featuredPictures: {
+                url: imageUrl,
+                userId: req.user._id,
+                caption: caption || "",
+              },
+            },
+          },
+          { new: true }
+        ).populate("featuredPictures.userId", "name");
 
-//           const updatedPandal = await Pandal.findByIdAndUpdate(
-//             pandalId,
-//             {
-//               $push: {
-//                 featuredPictures: {
-//                   url: mediaUrl,
-//                   userId: req.user._id
-//                 }
-//               }
-//             },
-//             { new: true }
-//           ).populate("featuredPictures.userId", "name email");
+        res.status(201).json(updatedPandal);
+      }
+    );
 
-//           res.status(201).json(updatedPandal);
-//         }
-//       );
-
-//       uploadStream.end(req.file.buffer);
-//     } catch (error) {
-//       console.error("Error uploading featured media:", error);
-//       res.status(500).json({ message: "Server error" });
-//     }
-//   }
-// );
-
-
-
-
+    uploadStream.end(req.file.buffer);
+  } catch (error) {
+    console.error("Error uploading featured image:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+);
 
 
 

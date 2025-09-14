@@ -17,6 +17,8 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { useUserStore } from "../../store/userStore";
 import { useState } from "react";
 import { launchImageLibrary } from "react-native-image-picker";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -86,19 +88,45 @@ const PandalDetailsScreen = ({ route }) => {
 
   const handleUpload = async () => {
     if (!selectedImage) {
-      alert("Please select an image first");
-      return;
-    }
+    alert("Please select an image first");
+    return;
+  }
 
+  try {
     setLoading(true);
-    // TODO: Replace with API call
-    setTimeout(() => {
-      setLoading(false);
-      setModalVisible(false);
-      alert(`Photo uploaded with caption: "${caption}" 🎉`);
-      setSelectedImage(null);
-      setCaption("");
-    }, 1500);
+    const token = await AsyncStorage.getItem("token");
+
+    const formData = new FormData();
+    formData.append("image", {
+      uri: selectedImage,
+      name: `featured.${selectedImage.split('.').pop()}`,
+      type: `image/${selectedImage.split('.').pop()}`,
+    });
+    formData.append("caption", caption);
+
+    const res = await axios.post(
+      `http://192.168.0.100:3000/api/pandals/${item._id}/featured-image`, 
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    alert("Photo uploaded.");
+    console.log("Updated Pandal:", res.data);
+
+    setLoading(false);
+    setSelectedImage(null);
+    setCaption("");
+    setModalVisible(false);
+  } catch (error) {
+    console.error("Upload failed:", error);
+    alert("Failed to upload image");
+    setLoading(false);
+  }
   };
 
   return (

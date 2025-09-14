@@ -1,5 +1,5 @@
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, FlatList, PermissionsAndroid, Platform, TextInput} from 'react-native';
-import React, { useEffect, useState } from 'react';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, FlatList, Animated, PermissionsAndroid, Platform, TextInput } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -13,45 +13,45 @@ import chatIcon from '../../assets/chatIcon.png';
 
 const screenWidth = Dimensions.get('window').width - 40;
 const numColumns = 3;
-const imageMargin = 5; 
+const imageMargin = 5;
 
 const imageWidth = (screenWidth - (numColumns + 1) * imageMargin) / numColumns;
 
 const Profile = () => {
   // const { user, setUser } = useContext(UserContext);
   const [isModalVisible, setModalVisible] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null); 
-  const [loading , setLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [isBioModalVisible, setBioModalVisible] = useState(false);
   const [bioText, setBioText] = useState("");
   const [loadingBio, setLoadingBio] = useState(false);
-  
-  const { user , setUser } = useUserStore();
-  
+  const [previewImage, setPreviewImage] = useState(null);
+  const { user, setUser } = useUserStore();
+
   const requestGalleryPermission = async () => {
-  if (Platform.OS === "android") {
-    try {
-      let permission;
+    if (Platform.OS === "android") {
+      try {
+        let permission;
 
-      if (Platform.Version >= 33) {
-        permission = PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES;
-      } else {
-        permission = PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+        if (Platform.Version >= 33) {
+          permission = PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES;
+        } else {
+          permission = PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+        }
+
+        const granted = await PermissionsAndroid.request(permission, {
+          title: "Gallery Permission",
+          message: "We need access to your gallery to upload featured images",
+          buttonPositive: "OK",
+        });
+
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
       }
-
-      const granted = await PermissionsAndroid.request(permission, {
-        title: "Gallery Permission",
-        message: "We need access to your gallery to upload featured images",
-        buttonPositive: "OK",
-      });
-
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
-    } catch (err) {
-      console.warn(err);
-      return false;
     }
-  }
-  return true; 
+    return true;
   };
 
   const openGallery = async () => {
@@ -70,64 +70,64 @@ const Profile = () => {
 
       if (response.assets && response.assets.length > 0) {
         const selectedUri = response.assets[0].uri;
-        setSelectedImage(selectedUri); 
+        setSelectedImage(selectedUri);
       }
     });
   };
 
-const handlePost = async () => {
-  if (!selectedImage) {
-    alert("Please select an image first");
-    return;
-  }
+  const handlePost = async () => {
+    if (!selectedImage) {
+      alert("Please select an image first");
+      return;
+    }
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("token");
 
-    const formData = new FormData();
-    formData.append("image", {
-      uri: selectedImage,
-      name: `featured.${selectedImage.split('.').pop()}`,
-      type: `image/${selectedImage.split('.').pop()}`,
-    });
+      const formData = new FormData();
+      formData.append("image", {
+        uri: selectedImage,
+        name: `featured.${selectedImage.split('.').pop()}`,
+        type: `image/${selectedImage.split('.').pop()}`,
+      });
 
-    const res = await axios.post(
-      "http://192.168.0.100:3000/api/user/featured-image",
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
+      const res = await axios.post(
+        "http://192.168.0.100:3000/api/user/featured-image",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-    setUser(res.data);
-    setLoading(false);
+      setUser(res.data);
+      setLoading(false);
+      setSelectedImage(null);
+      setModalVisible(false);
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Failed to upload image");
+      setLoading(false);
+    }
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
     setSelectedImage(null);
-    setModalVisible(false);
-  } catch (error) {
-    console.error("Upload failed:", error);
-    alert("Failed to upload image");
-    setLoading(false);
-  }
-};
-
-const closeModal = () => {
-    setModalVisible(false);
-    setSelectedImage(null); 
   };
 
-useEffect(() => {
-  if (user?.bio) {
-    setBioText(user.bio);
-  }
-}, [user]);
+  useEffect(() => {
+    if (user?.bio) {
+      setBioText(user.bio);
+    }
+  }, [user]);
 
 
- const openBioModal = () => {
+  const openBioModal = () => {
     setBioText(user.bio || "");
     setBioModalVisible(true);
   };
@@ -158,6 +158,21 @@ useEffect(() => {
     }
   };
 
+  const AnimatedImageItem = ({ uri, onPreview }) => {
+    return (
+      <TouchableOpacity
+        onLongPress={() => onPreview(uri)}
+        delayLongPress={150}
+        activeOpacity={0.9}
+      >
+        <Image
+          source={{ uri }}
+          style={styles.featuredImage}
+        />
+      </TouchableOpacity>
+    );
+  };
+
 
   if (!user) {
     return (
@@ -176,14 +191,14 @@ useEffect(() => {
               style={styles.profileImage}
             />
             <View style={styles.usernameContainer}>
-               <View style={{flexDirection: "row", justifyContent: "space-between"}}>
-                 <Text style={styles.username}>{user?.username}</Text>
-                 <Text style={{ marginVertical: 5}}>0 views</Text>
-                 <TouchableOpacity onPress={() => console.log("Pressed!")}>
-                       <Image source={chatIcon}
-                              style={{ width: 35, height: 35, }}/>
-                  </TouchableOpacity>
-               </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={styles.username}>{user?.username}</Text>
+                <Text style={{ marginVertical: 5 }}>0 views</Text>
+                <TouchableOpacity onPress={() => console.log("Pressed!")}>
+                  <Image source={chatIcon}
+                    style={{ width: 35, height: 35, }} />
+                </TouchableOpacity>
+              </View>
               <TouchableOpacity style={styles.btnStyle} onPress={() => setModalVisible(true)}>
                 <Text style={styles.uploadBtnTxt}>Add Featured Image +</Text>
               </TouchableOpacity>
@@ -200,100 +215,97 @@ useEffect(() => {
         )}
 
         <Modal
-        isVisible={isBioModalVisible}
-        onBackdropPress={closeBioModal}
-        style={{ justifyContent: "center", margin: 20 }}
-      >
-        <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 10 }}>
-          <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
-            {user?.bio ? "Update Bio" : "Add Bio"}
-          </Text>
-
-          <TextInput
-            value={bioText}
-            onChangeText={setBioText}
-            placeholder="Write something about yourself..."
-            style={{
-              borderColor: "#ccc",
-              borderWidth: 1,
-              borderRadius: 8,
-              padding: 10,
-              height: 100,
-              textAlignVertical: "top",
-            }}
-            multiline
-          />
-
-          <TouchableOpacity
-            style={{
-              backgroundColor: "#ff5100ff",
-              padding: 12,
-              marginTop: 15,
-              borderRadius: 8,
-              alignItems: "center",
-              opacity: loadingBio ? 0.6 : 1,
-            }}
-            disabled={loadingBio}
-            onPress={handleSaveBio}
-          >
-            <Text style={{ color: "#fff", fontWeight: "bold" }}>
-              {loadingBio ? "Saving..." : "Save"}
+          isVisible={isBioModalVisible}
+          onBackdropPress={closeBioModal}
+          style={{ justifyContent: "center", margin: 20 }}
+        >
+          <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 10 }}>
+            <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
+              {user?.bio ? "Update Bio" : "Add Bio"}
             </Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
+
+            <TextInput
+              value={bioText}
+              onChangeText={setBioText}
+              placeholder="Write something about yourself..."
+              style={{
+                borderColor: "#ccc",
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 10,
+                height: 100,
+                textAlignVertical: "top",
+              }}
+              multiline
+            />
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#ff5100ff",
+                padding: 12,
+                marginTop: 15,
+                borderRadius: 8,
+                alignItems: "center",
+                opacity: loadingBio ? 0.6 : 1,
+              }}
+              disabled={loadingBio}
+              onPress={handleSaveBio}
+            >
+              <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                {loadingBio ? "Saving..." : "Save"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
 
       </View>
 
-       <View style={{ marginVertical: 20 }}>
-          {user?.featuredImages && user?.featuredImages.length > 0 ? (
-            <FlatList
-              data={user?.featuredImages}
-              keyExtractor={(item, index) => index.toString()}
-              numColumns={3} 
-              renderItem={({ item }) => (
-                <Image
-                  source={{ uri: item }}
-                  style={styles.featuredImage}
-                />
-              )}
-              contentContainerStyle={{ paddingBottom: 50 }}
+      <View style={{ marginVertical: 20 }}>
+        {user?.featuredImages && user?.featuredImages.length > 0 ? (
+          <FlatList
+            data={user?.featuredImages}
+            keyExtractor={(item, index) => index.toString()}
+            numColumns={3}
+            renderItem={({ item }) => (
+              <AnimatedImageItem uri={item} onPreview={(uri) => setPreviewImage(uri)} />
+            )}
+            contentContainerStyle={{ paddingBottom: 50 }}
+          />
+        ) : (
+          <Text style={{ color: '#999', fontSize: 14 }}>No featured images yet</Text>
+        )}
+      </View>
+
+
+      <Modal
+        isVisible={isModalVisible}
+        style={styles.modal}
+        onBackdropPress={closeModal}
+        swipeDirection="down"
+      >
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Upload Featured Image</Text>
+
+          {selectedImage ? (
+            <Image
+              source={{ uri: selectedImage }}
+              style={styles.previewImage}
             />
           ) : (
-            <Text style={{ color: '#999', fontSize: 14 }}>No featured images yet</Text>
+            <View style={styles.previewPlaceholder}>
+              <Ionicons name="image-outline" size={40} color="#ccc" onPress={openGallery} />
+              <Text style={{ color: "#aaa", marginTop: 5 }} onPress={openGallery}>No Image Selected</Text>
+            </View>
           )}
-        </View>
-       
 
-       <Modal
-          isVisible={isModalVisible}
-          style={styles.modal}
-          onBackdropPress={closeModal}
-          swipeDirection="down"
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Upload Featured Image</Text>
-
-            {selectedImage ? (
-              <Image
-                source={{ uri: selectedImage }}
-                style={styles.previewImage}
-              />
-            ) : (
-              <View style={styles.previewPlaceholder}>
-                <Ionicons name="image-outline" size={40} color="#ccc" onPress={openGallery} />
-                <Text style={{ color: "#aaa", marginTop: 5 }}  onPress={openGallery}>No Image Selected</Text>
-              </View>
-            )}
-
-            {/* Pick Image Button */}
-            {/* <TouchableOpacity style={styles.modalButton} onPress={openGallery}>
+          {/* Pick Image Button */}
+          {/* <TouchableOpacity style={styles.modalButton} onPress={openGallery}>
               <Ionicons name="images-outline" size={20} color="#fff" />
               <Text style={styles.modalButtonText}>Pick from Gallery</Text>
             </TouchableOpacity> */}
 
-            {/* Post Button */}
-            <TouchableOpacity
+          {/* Post Button */}
+          <TouchableOpacity
             style={[
               styles.modalButton,
               { marginTop: 10 },
@@ -301,7 +313,7 @@ useEffect(() => {
             ]}
             onPress={handlePost}
             disabled={loading} // disables touch when loading
-          > 
+          >
             {loading ? (
               <Text style={styles.modalButtonText}>Adding...</Text>
             ) : (
@@ -311,8 +323,29 @@ useEffect(() => {
               </>
             )}
           </TouchableOpacity>
-          </View>
-        </Modal>
+        </View>
+      </Modal>
+
+      <Modal
+        isVisible={previewImage}
+        onBackdropPress={() => setPreviewImage(null)}
+        style={{ margin: 0, justifyContent: "center", alignItems: "center" }}
+      >
+        <View style={{ width: "100%", height: "80%", justifyContent: "center", alignItems: "center" }}>
+          <Image
+            source={{ uri: previewImage }}
+            style={{ width: "90%", height: "70%", borderRadius: 8, resizeMode: "contain" }}
+            resizeMode='cover'
+          />
+          <TouchableOpacity
+            style={{ position: "absolute", top: 40, right: 20 }}
+            onPress={() => setPreviewImage(null)}
+          >
+            <Ionicons name="close" size={30} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 };
@@ -378,60 +411,60 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   featuredImage: {
-  width: imageWidth,
-  height: imageWidth,
-  borderRadius: 5,
-  marginHorizontal: imageMargin / 2,
-  marginVertical: imageMargin / 2,
-},
-uploadBtnTxt: {
-  fontSize: 15,
-  fontWeight: "400"
-},
-  modal: { 
+    width: imageWidth,
+    height: imageWidth,
+    borderRadius: 5,
+    marginHorizontal: imageMargin / 2,
+    marginVertical: imageMargin / 2,
+  },
+  uploadBtnTxt: {
+    fontSize: 15,
+    fontWeight: "400"
+  },
+  modal: {
     justifyContent: "flex-end",
-     margin: 0
-    },
-  modalContent: { 
-    backgroundColor: "#fff", 
-    padding: 20, 
-    borderTopLeftRadius: 20, 
-    borderTopRightRadius: 20 
+    margin: 0
   },
-  modalTitle: { 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    marginBottom: 15 
+  modalContent: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20
   },
-  modalButton: { 
-    flexDirection: "row", 
-    alignItems: "center", 
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15
+  },
+  modalButton: {
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ff6600ff", 
-    padding: 12, 
-    borderRadius: 10 
+    backgroundColor: "#ff6600ff",
+    padding: 12,
+    borderRadius: 10
   },
-  modalButtonText: { 
-    color: "#fff", 
-    marginLeft: 8, 
-    fontSize: 16 ,
+  modalButtonText: {
+    color: "#fff",
+    marginLeft: 8,
+    fontSize: 16,
   },
-previewImage: {
-  width: "100%",
-  height: 200,
-  borderRadius: 10,
-  marginBottom: 15,
-},
-previewPlaceholder: {
-  width: "100%",
-  height: 200,
-  borderRadius: 10,
-  borderWidth: 1,
-  borderColor: "#ccc",
-  justifyContent: "center",
-  alignItems: "center",
-  marginBottom: 15,
-}
+  previewImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  previewPlaceholder: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 15,
+  }
 });
 
 export default Profile;
