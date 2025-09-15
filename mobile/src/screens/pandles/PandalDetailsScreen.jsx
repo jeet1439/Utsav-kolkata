@@ -1,34 +1,62 @@
-import { 
-  View, 
-  Text, 
-  Image, 
-  Dimensions, 
-  ScrollView, 
-  TouchableOpacity, 
-  Linking, 
-  Modal, 
-  StyleSheet, 
-  Platform, 
-  PermissionsAndroid, 
-  TextInput 
+import {
+  View,
+  Text,
+  Image,
+  Dimensions,
+  ScrollView,
+  TouchableOpacity,
+  Linking,
+  Modal,
+  StyleSheet,
+  Platform,
+  PermissionsAndroid,
+  TextInput,
+  FlatList,
+  ActivityIndicator
 } from "react-native";
 import Swiper from "react-native-swiper";
-import Ionicons from "react-native-vector-icons/Ionicons"; 
+import Ionicons from "react-native-vector-icons/Ionicons";
 import { useUserStore } from "../../store/userStore";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { launchImageLibrary } from "react-native-image-picker";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import MemoryCard from "../../components/memoryCard";
 const { width } = Dimensions.get("window");
 
 const PandalDetailsScreen = ({ route }) => {
   const { item } = route.params;
   const { user } = useUserStore();
   const [isModalVisible, setModalVisible] = useState(false);
-  const [loading , setLoading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null); 
-  const [caption, setCaption] = useState(""); // ✅ caption state
+  const [loading, setLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [caption, setCaption] = useState("");
+  const [memories, setMemories] = useState([]);
+
+  useEffect(() => {
+    const fetchMemories = async () => {
+      try {
+        setLoading(true);
+
+        const res = await fetch(`http://192.168.0.101:3000/api/pandals/${item._id}`);
+        const data = await res.json();
+
+        // take only featuredPictures of this pandal
+        const pandalMemories = data.featuredPictures.map(pic => ({
+          ...pic,
+          pandalTitle: data.title,
+        }));
+
+        setMemories(pandalMemories);
+      } catch (err) {
+        console.error("Error fetching pandal memories:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMemories();
+  }, [item._id]);
 
   // Google Maps
   const openMaps = () => {
@@ -36,7 +64,7 @@ const PandalDetailsScreen = ({ route }) => {
     Linking.openURL(url);
   };
 
-  // Permissions for Android
+
   const requestGalleryPermission = async () => {
     if (Platform.OS === "android") {
       try {
@@ -57,7 +85,7 @@ const PandalDetailsScreen = ({ route }) => {
         return false;
       }
     }
-    return true; 
+    return true;
   };
 
   const openGallery = async () => {
@@ -75,63 +103,73 @@ const PandalDetailsScreen = ({ route }) => {
       }
       if (response.assets && response.assets.length > 0) {
         const selectedUri = response.assets[0].uri;
-        setSelectedImage(selectedUri); 
+        setSelectedImage(selectedUri);
       }
     });
   };
 
   const closeModal = () => {
     setModalVisible(false);
-    setSelectedImage(null); 
+    setSelectedImage(null);
     setCaption(""); // reset caption
   };
 
   const handleUpload = async () => {
     if (!selectedImage) {
-    alert("Please select an image first");
-    return;
-  }
+      alert("Please select an image first");
+      return;
+    }
 
-  try {
-    setLoading(true);
-    const token = await AsyncStorage.getItem("token");
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem("token");
 
-    const formData = new FormData();
-    formData.append("image", {
-      uri: selectedImage,
-      name: `featured.${selectedImage.split('.').pop()}`,
-      type: `image/${selectedImage.split('.').pop()}`,
-    });
-    formData.append("caption", caption);
+      const formData = new FormData();
+      formData.append("image", {
+        uri: selectedImage,
+        name: `featured.${selectedImage.split('.').pop()}`,
+        type: `image/${selectedImage.split('.').pop()}`,
+      });
+      formData.append("caption", caption);
 
-    const res = await axios.post(
-      `http://192.168.0.100:3000/api/pandals/${item._id}/featured-image`, 
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
+      const res = await axios.post(
+        `http://192.168.0.101:3000/api/pandals/${item._id}/featured-image`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
-    alert("Photo uploaded.");
-    console.log("Updated Pandal:", res.data);
+      const updatedPandal = res.data;
 
-    setLoading(false);
-    setSelectedImage(null);
-    setCaption("");
-    setModalVisible(false);
-  } catch (error) {
-    console.error("Upload failed:", error);
-    alert("Failed to upload image");
-    setLoading(false);
-  }
+      // update memories from the latest featuredPictures
+      const newMemory = {
+        ...updatedPandal.featuredPictures[0],
+        pandalTitle: updatedPandal.title,
+      };
+
+      setMemories((prev) => [newMemory, ...prev]);
+
+      alert("Photo uploaded.");
+      console.log("Updated Pandal:", res.data);
+
+      setLoading(false);
+      setSelectedImage(null);
+      setCaption("");
+      setModalVisible(false);
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Failed to upload image");
+      setLoading(false);
+    }
   };
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#ffffffff" }}>
-      {/* Image Slider */}
+
       <View style={{ height: 250 }}>
         <Swiper
           autoplay
@@ -150,9 +188,9 @@ const PandalDetailsScreen = ({ route }) => {
         </Swiper>
       </View>
 
-      {/* Details */}
+
       <View style={{ padding: 20 }}>
-        {/* Title + Directions Button */}
+
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Text style={{ fontSize: 26, fontWeight: "bold", color: "#333", flex: 1 }}>
             {item.title}
@@ -170,7 +208,7 @@ const PandalDetailsScreen = ({ route }) => {
           {item.distance.toFixed(2)} km away
         </Text>
 
-        {/* Nearest Metro */}
+
         <View style={{ marginTop: 15 }}>
           <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 5 }}>
             Nearest Metro
@@ -181,7 +219,6 @@ const PandalDetailsScreen = ({ route }) => {
           )}
         </View>
 
-        {/* About Section */}
         <View style={styles.aboutBox}>
           <Text style={styles.aboutTitle}>About</Text>
           <Text style={styles.aboutText}>
@@ -189,7 +226,6 @@ const PandalDetailsScreen = ({ route }) => {
           </Text>
         </View>
 
-        {/* Post a Memory Button */}
         <TouchableOpacity
           onPress={() => setModalVisible(true)}
           style={styles.postButton}
@@ -198,6 +234,25 @@ const PandalDetailsScreen = ({ route }) => {
             📸 Post a Memory
           </Text>
         </TouchableOpacity>
+        <View style={styles.memories}>
+          <FlatList
+          data={memories}
+          keyExtractor={(item) => item._id}
+          scrollEnabled={false}
+          renderItem={({ item }) => <MemoryCard item={item} />}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={() => (
+            <View style={{ alignItems: "center", marginTop: 50 }}>
+              <Ionicons name="images-outline" size={48} color="#aaa" />
+              <Text style={{ marginTop: 10, fontSize: 16, color: "#555" }}>
+                No memories shared yet
+              </Text>
+            </View>
+          )}
+        />
+
+        </View>
+        
       </View>
 
       {/* Modal */}
@@ -212,14 +267,14 @@ const PandalDetailsScreen = ({ route }) => {
             <Text style={styles.modalTitle}>Shere a Memory</Text>
 
             {selectedImage ? (
-              <Image 
-              source={{ uri: selectedImage }} 
-              style={styles.previewImage}
-              resizeMode="contain"
-               />
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.previewImage}
+                resizeMode="contain"
+              />
             ) : (
-              <TouchableOpacity 
-                style={styles.previewPlaceholder} 
+              <TouchableOpacity
+                style={styles.previewPlaceholder}
                 onPress={openGallery}
               >
                 <Ionicons name="image-outline" size={40} color="#ccc" />
@@ -241,9 +296,9 @@ const PandalDetailsScreen = ({ route }) => {
               <TouchableOpacity style={[styles.modalButton, { backgroundColor: "#ccc" }]} onPress={closeModal}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalButton, { backgroundColor: "#ff6868" }, loading && { opacity: 0.6 }]} 
+
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: "#ff6868" }, loading && { opacity: 0.6 }]}
                 onPress={handleUpload}
                 disabled={loading}
               >
@@ -253,6 +308,7 @@ const PandalDetailsScreen = ({ route }) => {
           </View>
         </View>
       </Modal>
+
     </ScrollView>
   );
 };
@@ -301,14 +357,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalTitle: { fontSize: 20, fontWeight: "600", marginBottom: 15 },
-  previewImage: { 
-    width: 260, 
+  previewImage: {
+    width: 260,
     height: 200,
-    borderRadius: 5, 
+    borderRadius: 5,
     marginBottom: 15,
     backgroundColor: "#f0f0f0",
   },
-     previewPlaceholder: {
+  previewPlaceholder: {
     width: 260,
     height: 200,
     borderRadius: 5,
@@ -343,6 +399,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalButtonText: { color: "#fff", fontWeight: "600" },
+  memories: {
+    marginTop: 16
+  }
 });
 
 export default PandalDetailsScreen;

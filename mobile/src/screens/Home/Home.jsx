@@ -63,9 +63,8 @@ const Home = ({ navigation }) => {
   const fetchNearestPandleData = async () => {
     try {
       if (!location) return;
-
       const res = await fetch(
-        `http://192.168.0.100:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,{
+        `http://192.168.0.101:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,{
           headers: { Authorization: `Bearer ${token}` },
         }
       );
@@ -96,47 +95,56 @@ console.log(nearestPandle);
       {/* Top section - Map */}
       <View style={styles.topSection}>
       {location && (
-        <LeafletView
-          mapCenterPosition={{ lat: location.latitude, lng: location.longitude }}
-          zoom={15}
-          mapMarkers={[
-            {
-              id: "currentLocation",
-              position: { lat: location.latitude, lng: location.longitude },
-              icon: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
-              size: [32, 32],
-            },
-            // Pandal markers 
-            ...(Array.isArray(nearestPandle) && nearestPandle.length > 0
-                ? nearestPandle.map((pandal) => ({
-                    id: pandal._id,
-                    position: {
-                      lat: pandal.location.coordinates[1], 
-                      lng: pandal.location.coordinates[0], 
-                    },
-                    icon: "https://res.cloudinary.com/dzwismxgx/image/upload/v1756570041/location_f7rguo.png",
-                    size: [32, 32],
-                  }))
-                : []),
-          ]}
-        />
+        <View style={styles.topSection}>
+  {location && (
+    <LeafletView
+      mapCenterPosition={{ lat: location.latitude, lng: location.longitude }}
+      zoom={15}
+      // mapLayers={[
+      //   {
+      //     baseLayerName: "Carto",
+      //     baseLayerIsChecked: true,
+      //     url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+      //     attribution: "© OpenStreetMap contributors © CARTO",
+      //   },
+      // ]}
+      mapMarkers={[
+        {
+          id: "currentLocation",
+          position: { lat: location.latitude, lng: location.longitude },
+          icon: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+          size: [32, 32],
+        },
+        ...(nearestPandle?.map((pandal, index) => ({
+          id: `pandal-${index}`,
+          position: {
+            lat: pandal.location.coordinates[1], 
+            lng: pandal.location.coordinates[0], 
+          },
+          icon: "https://cdn-icons-png.flaticon.com/512/149/149059.png",
+          size: [32, 32],
+        })) || []),
+      ]}
+    />
+  )}
+</View>
       )}
   </View>
 
       {/* Bottom section - Data */}
       <View style={styles.bottomSection}>
       <View style={styles.heading}>
-        <Text style={styles.headerText}>Utsav Kolkata</Text>
-        <TouchableOpacity style={styles.loadButton} onPress={getLocation}>
+          <Text style={styles.headerText}>Pandal Closest to You</Text>
+          <TouchableOpacity style={styles.loadButton} onPress={getLocation}>
             {location ? (
-              <View style={[styles.circle, {backgroundColor:'green'}]} />
+              <View style={[styles.circle, { backgroundColor: 'green' }]} />
             ) : (
-              <View style={[styles.circle, { backgroundColor: '#ccc'}]} />
+              <View style={[styles.circle, { backgroundColor: '#ccc' }]} />
             )}
-        </TouchableOpacity>
-      </View>
+          </TouchableOpacity>
+          </View>
         {/* <Text style={styles.dataText}> </Text> */}
-       <View  style={{ height: 300, paddingBottom: 100} }>
+       <View  style={{ height: 300, paddingBottom: 20} }>
         {nearestPandle && nearestPandle.length > 0 ? (
           <FlatList
             data={nearestPandle}

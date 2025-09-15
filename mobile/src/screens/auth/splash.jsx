@@ -1,18 +1,19 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-
 const Splash = ({ navigation }) => {
-
   useEffect(() => {
     const checkAuth = async () => {
       const token = await AsyncStorage.getItem('token');
-      if (token ) {
-        navigation.replace('Main', { screen: 'Home' });
-      } else {
-        navigation.replace('Login');
-      }
+
+      setTimeout(() => {
+        if (token) {
+          navigation.replace('Main', { screen: 'Home' });
+        } else {
+          navigation.replace('Login');
+        }
+      }, 3000); // 2 seconds delay
     };
 
     checkAuth();
@@ -20,13 +21,21 @@ const Splash = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color="#4a90e2" />
+      <Image
+        source={require('../../assets/splash.png')} 
+        style={styles.image}
+        resizeMode="contain"
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+  image: { 
+    height: '100%' 
+  },
 });
+
 
 export default Splash;

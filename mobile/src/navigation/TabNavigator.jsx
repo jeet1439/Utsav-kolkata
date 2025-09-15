@@ -17,7 +17,7 @@ export default function TabNavigator() {
         tabBarStyle: {
           backgroundColor: "#ff6868ff",
           position: "absolute",
-          height: 55,
+          height: 65,
         },
 
         tabBarIconStyle: {

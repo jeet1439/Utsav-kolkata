@@ -94,7 +94,7 @@ const Profile = () => {
       });
 
       const res = await axios.post(
-        "http://192.168.0.100:3000/api/user/featured-image",
+        "http://192.168.0.101:3000/api/user/featured-image",
         formData,
         {
           headers: {
@@ -139,7 +139,7 @@ const Profile = () => {
   const handleSaveBio = async () => {
     try {
       setLoadingBio(true);
-      const res = await axios.post("http://192.168.0.100:3000/api/user/update-bio", {
+      const res = await axios.post("http://192.168.0.101:3000/api/user/update-bio", {
         userId: user._id,
         bio: bioText.trim(),
       });
@@ -330,6 +330,12 @@ const Profile = () => {
         isVisible={previewImage}
         onBackdropPress={() => setPreviewImage(null)}
         style={{ margin: 0, justifyContent: "center", alignItems: "center" }}
+        animationIn="fadeIn"
+        animationOut="fadeOut"
+        animationInTiming={300}  
+        animationOutTiming={300}
+        backdropTransitionInTiming={300}
+        backdropTransitionOutTiming={300}
       >
         <View style={{ width: "100%", height: "80%", justifyContent: "center", alignItems: "center" }}>
           <Image
@@ -337,12 +343,6 @@ const Profile = () => {
             style={{ width: "90%", height: "70%", borderRadius: 8, resizeMode: "contain" }}
             resizeMode='cover'
           />
-          <TouchableOpacity
-            style={{ position: "absolute", top: 40, right: 20 }}
-            onPress={() => setPreviewImage(null)}
-          >
-            <Ionicons name="close" size={30} color="#fff" />
-          </TouchableOpacity>
         </View>
       </Modal>
 
