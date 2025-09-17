@@ -2,16 +2,21 @@ import React, { useState } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import moment from "moment";
+import { useNavigation } from "@react-navigation/native";
 
 const MemoryCard = ({ item }) => {
   const [liked, setLiked] = useState(false);
   const [likes, setLikes] = useState(item.likes || 0); // dynamic like count
+  console.log(item.userId._id);
+  const navigation = useNavigation();
 
-
+  const handleNavigate = () => {
+  navigation.navigate("PersonProfile", { userId: item.userId._id });
+  };
+  
   return (
     <View style={styles.memoryCard}>
-
-      <TouchableOpacity style={styles.memoryHeader}>
+      <TouchableOpacity onPress={() => handleNavigate()} style={styles.memoryHeader}>
         <Image source={{ uri: item.userId.profileImage[0] }}
           style={styles.profileImage}
         />

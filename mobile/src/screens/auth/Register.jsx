@@ -12,12 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import LinearGradient from 'react-native-linear-gradient';
+import { useUserStore } from '../../store/userStore.js';
 
 const Register = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const { setUser } = useUserStore();
 
   const handleRegister = async () => {
     if (!username || !email || !password) {
@@ -44,11 +46,10 @@ const Register = ({ navigation }) => {
 
       if (res.ok) {
         alert('Registration successful');
-
-       await AsyncStorage.setItem('token', data.token);
-        await AsyncStorage.setItem('user', JSON.stringify(data.user));
-
-       navigation.replace('Main', { screen: 'Home' });
+        await AsyncStorage.setItem('token', data.token);
+        await AsyncStorage.setItem('userId', data.user._id);
+        setUser(data.user);
+        navigation.replace('Main', { screen: 'Home' });
       } else {
         alert(data.message || 'Something went wrong');
       }
@@ -60,55 +61,65 @@ const Register = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <LinearGradient
+        colors={['#ff9a9e', '#fad0c4']}
+        style={styles.gradientBackground}
       >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <Text style={styles.title}>Register</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Username"
-            placeholderTextColor="#aaa"
-            value={username}
-            onChangeText={setUsername}
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#aaa"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#aaa"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-
-          <TouchableOpacity style={styles.button} onPress={handleRegister}>
-            <Text style={styles.buttonText}>Sign Up</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Login')}
-            style={{ marginTop: 20 }}
+          <ScrollView
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.link}>Already have an account? Login</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+            <Text style={styles.title}>Register</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Username"
+              placeholderTextColor="#aaa"
+              value={username}
+              onChangeText={setUsername}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#aaa"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#aaa"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+
+            <TouchableOpacity onPress={handleRegister} style={{ marginTop: 10 }}>
+              <LinearGradient
+                colors={['#ff6868', '#ff8c68']}
+                style={styles.button}
+              >
+                <Text style={styles.buttonText}>Sign Up</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Login')}
+              style={{ marginTop: 20 }}
+            >
+              <Text style={styles.link}>Already have an account? Login</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
     </SafeAreaView>
   );
 };
@@ -116,7 +127,9 @@ const Register = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+  },
+  gradientBackground: {
+    flex: 1,
   },
   container: {
     padding: 20,
@@ -139,12 +152,11 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     fontSize: 16,
     color: '#000',
+    backgroundColor: '#f7ebebff',
   },
   button: {
-    backgroundColor: '#4a90e2',
     paddingVertical: 15,
     borderRadius: 8,
-    marginTop: 10,
   },
   buttonText: {
     color: '#fff',

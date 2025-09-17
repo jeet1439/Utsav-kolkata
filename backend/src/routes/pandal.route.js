@@ -84,15 +84,20 @@ router.post("/:pandalId/featured-image", authMiddleware, upload.single("image"),
           pandalId,
           {
             $push: {
-              featuredPictures: {
-                url: imageUrl,
-                userId: req.user._id,
-                caption: caption || "",
-              },
+             featuredPictures: {
+                  $each: [
+                    {
+                      url: imageUrl,
+                      userId: req.user._id,
+                      caption: caption || "",
+                    }
+                  ],
+                  $position: 0  
+                }
             },
           },
           { new: true }
-        ).populate("featuredPictures.userId", "name");
+        ).populate("featuredPictures.userId", "username profileImage");
 
         res.status(201).json(updatedPandal);
       }
@@ -105,8 +110,6 @@ router.post("/:pandalId/featured-image", authMiddleware, upload.single("image"),
   }
 }
 );
-
-
 
 router.post("/", async (req, res) => {
   try {
@@ -132,6 +135,22 @@ router.post("/", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server Error" });
+  }
+});
+
+router.get("/:id", async (req, res) => {
+  try {
+    const pandal = await Pandal.findById(req.params.id)
+      .populate("featuredPictures.userId", "username profileImage");
+
+    if (!pandal) {
+      return res.status(404).json({ message: "Pandal not found" });
+    }
+
+    res.status(200).json(pandal);
+  } catch (error) {
+    console.error("Error fetching pandal:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

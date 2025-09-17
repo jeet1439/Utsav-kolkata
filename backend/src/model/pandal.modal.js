@@ -1,6 +1,17 @@
 // models/Pandal.js
 import mongoose from "mongoose";
 
+
+const FeaturedPictureSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    caption: { type: String },
+  },
+  { timestamps: true }
+);
+
+
 const PandalSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -14,13 +25,13 @@ const PandalSchema = new mongoose.Schema({
   },
   pictures: [
     {
-      type: String, 
+      type: String,
       required: true
     }
   ],
   nearestMetro: [
     {
-      type: String, 
+      type: String,
       trim: true
     }
   ],
@@ -31,26 +42,11 @@ const PandalSchema = new mongoose.Schema({
       default: "Point"
     },
     coordinates: {
-      type: [Number], // [longitude, latitude]
+      type: [Number], 
       required: true
     }
   },
-  featuredPictures: [
-    {
-      url: {
-        type: String,
-        required: true
-      },
-      userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true
-      },
-      caption: {
-        type: String
-      }
-    }
-  ],
+  featuredPictures: [FeaturedPictureSchema],
 }, {
   timestamps: true
 });

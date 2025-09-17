@@ -9,6 +9,7 @@ const Settings = ({ navigation }) => {
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('userId');
       const { clearUser } = useUserStore.getState();
       clearUser();
       navigation.replace('Login');

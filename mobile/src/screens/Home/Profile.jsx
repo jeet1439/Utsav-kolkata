@@ -8,7 +8,6 @@ import Modal from "react-native-modal";
 import RNFS from 'react-native-fs';
 import axios from 'axios';
 import { Dimensions } from 'react-native';
-import { useUserStore } from '../../store/userStore.js';
 import chatIcon from '../../assets/chatIcon.png';
 
 const screenWidth = Dimensions.get('window').width - 40;
@@ -26,7 +25,30 @@ const Profile = () => {
   const [bioText, setBioText] = useState("");
   const [loadingBio, setLoadingBio] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
-  const { user, setUser } = useUserStore();
+  const [user, setUser] = useState(null);
+  const userId = AsyncStorage.getItem('userId');
+  
+  console.log(userId);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        const res = await axios.get("http://192.168.0.101:3000/api/user/me", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setUser(res.data.user);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+
 
   const requestGalleryPermission = async () => {
     if (Platform.OS === "android") {
@@ -136,27 +158,25 @@ const Profile = () => {
     setBioModalVisible(false);
   };
 
-  const handleSaveBio = async () => {
-    try {
-      setLoadingBio(true);
-      const res = await axios.post("http://192.168.0.101:3000/api/user/update-bio", {
-        userId: user._id,
-        bio: bioText.trim(),
-      });
+ const handleSaveBio = async () => {
+  try {
+    const res = await axios.post("http://192.168.0.101:3000/api/user/update-bio", {
+      userId: user._id,
+      bio: bioText.trim(),
+    });
 
-      if (res.data.success) {
-        setUser((prev) => ({ ...prev, bio: bioText.trim() }));
-        closeBioModal();
-      } else {
-        alert("Failed to update bio");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error updating bio");
-    } finally {
-      setLoadingBio(false);
+    if (res.data.success) {
+      setUser(res.data.user);  
+      closeBioModal();
+    } else {
+      Alert.alert("Error", res.data.message || "Failed to update bio");
     }
-  };
+  } catch (error) {
+    console.error("Error updating bio:", error);
+    Alert.alert("Error", "Something went wrong. Please try again.");
+  }
+ };
+
 
   const AnimatedImageItem = ({ uri, onPreview }) => {
     return (
@@ -172,7 +192,6 @@ const Profile = () => {
       </TouchableOpacity>
     );
   };
-
 
   if (!user) {
     return (
@@ -195,9 +214,29 @@ const Profile = () => {
                 <Text style={styles.username}>{user?.username}</Text>
                 <Text style={{ marginVertical: 5 }}>0 views</Text>
                 <TouchableOpacity onPress={() => console.log("Pressed!")}>
-                  <Image source={chatIcon}
-                    style={{ width: 35, height: 35, }} />
-                </TouchableOpacity>
+                <View style={{ position: "relative" }}>
+                  <Image
+                    source={chatIcon}
+                    style={{ width: 30, height: 30 }}
+                  />
+                  {/* Red Circle Badge */}
+                  <View
+                    style={{
+                      position: "absolute",
+                      right: -5,
+                      top: -5,
+                      backgroundColor: "red",
+                      borderRadius: 10,
+                      width: 18,
+                      height: 18,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ color: "white", fontSize: 12, fontWeight: "bold" }}>2</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
               </View>
               <TouchableOpacity style={styles.btnStyle} onPress={() => setModalVisible(true)}>
                 <Text style={styles.uploadBtnTxt}>Add Featured Image +</Text>

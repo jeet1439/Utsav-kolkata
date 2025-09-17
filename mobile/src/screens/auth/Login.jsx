@@ -9,10 +9,12 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUserStore} from '../../store/userStore.js';
+import { useUserStore } from '../../store/userStore.js';
 
 const Login = ({ navigation }) => {
   const [email, setEmail]       = useState('');
@@ -39,6 +41,7 @@ const Login = ({ navigation }) => {
 
       if (res.ok) {
         await AsyncStorage.setItem('token', data.token);
+        await AsyncStorage.setItem('userId', data.user._id);
         setUser(data.user);
         alert('Login successful');
         navigation.replace('Main', { screen: 'Home' });
@@ -53,60 +56,78 @@ const Login = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
+    <LinearGradient
+      colors={['#FFDEE9', '#FF9A8B', '#FFD3A5']} // festive gradient
+      style={styles.gradientBackground}
+    >
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <Text style={styles.title}>Login</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#aaa"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#aaa"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-
-          <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Login</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Register')}
-            style={{ marginTop: 20 }}
+          <ScrollView
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.link}>Don’t have an account? Register</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            <Text style={styles.title}>Login</Text>
+            {/* <Image
+              source={require('../../assets/logo.png')}
+              style={{ width: 120, height: 120, alignSelf: 'center', marginBottom: 20 }}
+              resizeMode="contain"
+            /> */}
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#aaa"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#aaa"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+
+            <TouchableOpacity onPress={handleLogin} disabled={loading}>
+              <LinearGradient
+                colors={['#FF6F61', '#ff7553ff', '#ff6868ff']} // gradient button
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.button}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Login</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Register')}
+              style={{ marginTop: 20 }}
+            >
+              <Text style={styles.link}>Don’t have an account? Register</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
+  gradientBackground: {
+    flex: 1,
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   container: {
     padding: 20,
@@ -114,38 +135,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 30,
     textAlign: 'center',
-    color: '#333',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 3,
   },
   input: {
     height: 50,
-    borderColor: '#ccc',
+    borderColor: '#fff',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 15,
     marginBottom: 15,
     fontSize: 16,
     color: '#000',
+    backgroundColor: '#f7ebebff'
   },
   button: {
-    backgroundColor: '#4a90e2',
     paddingVertical: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     marginTop: 10,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   buttonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 18,
   },
   link: {
-    color: '#4a90e2',
+    color: '#fff',
     fontSize: 16,
     textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });
 

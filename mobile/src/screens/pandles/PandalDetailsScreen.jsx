@@ -16,7 +16,6 @@ import {
 } from "react-native";
 import Swiper from "react-native-swiper";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { useUserStore } from "../../store/userStore";
 import { useEffect, useState } from "react";
 import { launchImageLibrary } from "react-native-image-picker";
 import axios from "axios";
@@ -26,7 +25,6 @@ const { width } = Dimensions.get("window");
 
 const PandalDetailsScreen = ({ route }) => {
   const { item } = route.params;
-  const { user } = useUserStore();
   const [isModalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -231,7 +229,7 @@ const PandalDetailsScreen = ({ route }) => {
           style={styles.postButton}
         >
           <Text style={styles.postButtonText}>
-            📸 Post a Memory
+             Shere a Memory
           </Text>
         </TouchableOpacity>
         <View style={styles.memories}>
@@ -302,7 +300,7 @@ const PandalDetailsScreen = ({ route }) => {
                 onPress={handleUpload}
                 disabled={loading}
               >
-                <Text style={styles.modalButtonText}>{loading ? "Adding..." : "Add"}</Text>
+                <Text style={styles.modalButtonText}>{loading ? "Posting..." : "Post"}</Text>
               </TouchableOpacity>
             </View>
           </View>
