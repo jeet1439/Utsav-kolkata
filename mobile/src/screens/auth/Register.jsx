@@ -73,8 +73,8 @@ const Register = ({ navigation }) => {
             contentContainerStyle={styles.container}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.title}>Register</Text>
-
+        <Text style={styles.title}>Ready to explore ?</Text>
+          <Text style={styles. subtitle}>create an account</Text>
             <TextInput
               style={styles.input}
               placeholder="Username"
@@ -139,9 +139,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 30,
+    marginBottom: 3,
     textAlign: 'center',
-    color: '#333',
+    color: '#ffffffff',
+  },
+  subtitle : {
+    fontSize: 20,
+    fontWeight: 'semibold',
+    marginBottom: 20,
+    textAlign: 'center',
+    color: '#ffffffff',
   },
   input: {
     height: 50,

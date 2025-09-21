@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Geolocation from 'react-native-geolocation-service';
 import { LeafletView } from "react-native-leaflet-view";
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const Home = ({ navigation }) => {
   const [user, setUser] = useState(null);
@@ -100,14 +101,6 @@ console.log(nearestPandle);
     <LeafletView
       mapCenterPosition={{ lat: location.latitude, lng: location.longitude }}
       zoom={15}
-      // mapLayers={[
-      //   {
-      //     baseLayerName: "Carto",
-      //     baseLayerIsChecked: true,
-      //     url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      //     attribution: "© OpenStreetMap contributors © CARTO",
-      //   },
-      // ]}
       mapMarkers={[
         {
           id: "currentLocation",
@@ -121,12 +114,15 @@ console.log(nearestPandle);
             lat: pandal.location.coordinates[1], 
             lng: pandal.location.coordinates[0], 
           },
-          icon: "https://cdn-icons-png.flaticon.com/512/149/149059.png",
+          icon: "https://res.cloudinary.com/dzwismxgx/image/upload/v1758135594/location_ukspja.png",
           size: [32, 32],
         })) || []),
       ]}
     />
   )}
+  <TouchableOpacity style={styles.floatingButton} onPress={getLocation}>
+  <Ionicons name="compass" size={28} color="#fff" />
+</TouchableOpacity>
 </View>
       )}
   </View>
@@ -135,43 +131,44 @@ console.log(nearestPandle);
       <View style={styles.bottomSection}>
       <View style={styles.heading}>
           <Text style={styles.headerText}>Pandal Closest to You</Text>
-          <TouchableOpacity style={styles.loadButton} onPress={getLocation}>
+          {/* <TouchableOpacity style={styles.loadButton} onPress={getLocation}>
             {location ? (
               <View style={[styles.circle, { backgroundColor: 'green' }]} />
             ) : (
               <View style={[styles.circle, { backgroundColor: '#ccc' }]} />
             )}
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           </View>
         {/* <Text style={styles.dataText}> </Text> */}
-       <View  style={{ height: 300, paddingBottom: 20} }>
+       <View  style={{ height: 300, paddingBottom: 25} }>
         {nearestPandle && nearestPandle.length > 0 ? (
           <FlatList
-            data={nearestPandle}
-            keyExtractor={(item) => item._id}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-              style={styles.row}
-              onPress={() => navigation.navigate("PandalDetails", { item })}
-              >
-                <Image
-                  source={{ uri: item.pictures[0] }}
-                  style={styles.image}
-                />
-                <View style={styles.info}>
-                  <Text style={styles.title}>{item.title}</Text>
-                  <Text style={styles.distance}>{item.distance.toFixed(2)} km</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
+              data={nearestPandle}
+              keyExtractor={(item) => item._id}
+              numColumns={2}  
+              key={"two-columns"} 
+              columnWrapperStyle={{ justifyContent: "space-between" }}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={styles.card}
+                  onPress={() => navigation.navigate("PandalDetails", { item })}
+                >
+                  <Image
+                    source={{ uri: item.pictures[0] }}
+                    style={styles.cardImage}
+                  />
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                    <Text style={styles.cardDistance}>within {item.distance.toFixed(2)} km</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
         ) : (
           <Text style={styles.dataText}>No pandals found nearby</Text>
         )}
-  </View>
-
-
+        </View>
       </View>
     </View>
   );
@@ -199,10 +196,13 @@ const styles = StyleSheet.create({
     height: 40,
   },
   headerText: {
-    fontSize: 25,
-    fontWeight: "600"
-  },
+  fontSize: 25,
+  fontWeight: "600",
+  textAlign: "center", // centers text inside its container
+  width: '100%',       // optional but recommended
+},
   loadButton: {
+   position: 'absolute',
    justifyContent: "center"
   },
   circle: {
@@ -237,6 +237,53 @@ const styles = StyleSheet.create({
     color: 'gray',
     marginTop: 4,
   },
+   card: {
+    flex: 1,
+    margin: 8,
+    backgroundColor: "#fff",
+    borderRadius: 6,
+    overflow: "hidden",
+    elevation: 3, 
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  cardImage: {
+    width: "100%",
+    height: 120,
+  },
+  cardInfo: {
+    padding: 8,
+    alignItems: "center",
+  },
+  cardTitle: {
+    fontWeight: "bold",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  cardDistance: {
+    fontSize: 12,
+    color: "gray",
+    marginTop: 4,
+  },
+  floatingButton: {
+  position: 'absolute',
+  bottom: 20,
+  right: 20,
+  backgroundColor: '#63a0e6ff',
+  width: 50,
+  height: 50,
+  borderRadius: 25,
+  justifyContent: 'center',
+  alignItems: 'center',
+  elevation: 5,
+  shadowColor: '#000',
+  shadowOpacity: 0.3,
+  shadowRadius: 5,
+  shadowOffset: { width: 0, height: 3 },
+},
+
 });
 
 export default Home;

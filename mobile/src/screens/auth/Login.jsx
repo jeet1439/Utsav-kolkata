@@ -15,16 +15,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '../../store/userStore.js';
+import CustomModal from '../../components/CustomModal.jsx';
+
 
 const Login = ({ navigation }) => {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
   const { setUser } = useUserStore();
+  
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState("success");
+  const [modalMessage, setModalMessage] = useState("");
+
+   const showModal = (type, msg) => {
+    setModalType(type);
+    setModalMessage(msg);
+    setModalVisible(true);
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
-      alert('All fields are required');
+      showModal("warning", "All fields are required");
       return;
     }
 
@@ -43,8 +55,11 @@ const Login = ({ navigation }) => {
         await AsyncStorage.setItem('token', data.token);
         await AsyncStorage.setItem('userId', data.user._id);
         setUser(data.user);
-        alert('Login successful');
-        navigation.replace('Main', { screen: 'Home' });
+        showModal("success", "Welcome back!!");
+        setTimeout(()=> {
+           navigation.replace('Main', { screen: 'Profile' });
+        }, 3000)
+       
       } else {
         alert(data.message || 'Invalid credentials');
       }
@@ -69,7 +84,7 @@ const Login = ({ navigation }) => {
             contentContainerStyle={styles.container}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.title}>Login</Text>
+            <Text style={styles.title}>Wlcome to Utsav Kolkata</Text>
             {/* <Image
               source={require('../../assets/logo.png')}
               style={{ width: 120, height: 120, alignSelf: 'center', marginBottom: 20 }}
@@ -116,6 +131,12 @@ const Login = ({ navigation }) => {
               <Text style={styles.link}>Don’t have an account? Register</Text>
             </TouchableOpacity>
           </ScrollView>
+            <CustomModal
+            visible={modalVisible}
+            type={modalType}
+            message={modalMessage}
+            onClose={() => setModalVisible(false)}
+          />
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
@@ -148,7 +169,7 @@ const styles = StyleSheet.create({
     height: 50,
     borderColor: '#fff',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 8,
     paddingHorizontal: 15,
     marginBottom: 15,
     fontSize: 16,

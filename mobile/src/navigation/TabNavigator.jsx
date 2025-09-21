@@ -19,7 +19,7 @@ export default function TabNavigator() {
           position: "absolute",
           height: 65,
         },
-
+        
         tabBarIconStyle: {
           marginTop: 6, 
         },

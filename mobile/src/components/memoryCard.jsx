@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import moment from "moment";
@@ -6,9 +6,15 @@ import { useNavigation } from "@react-navigation/native";
 
 const MemoryCard = ({ item }) => {
   const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(item.likes || 0); // dynamic like count
+  const [likes, setLikes] = useState(item.likes || 0); 
+  const [views, setViews] = useState(0);
+
   console.log(item.userId._id);
   const navigation = useNavigation();
+  
+    useEffect(() => {
+    setViews(Math.floor(Math.random() * 50) + 1);
+    }, []);
 
   const handleNavigate = () => {
   navigation.navigate("PersonProfile", { userId: item.userId._id });
@@ -32,7 +38,7 @@ const MemoryCard = ({ item }) => {
           <Text style={{ fontWeight: "600" }}>{item.userId?.username || "User"} </Text>
           {item.caption}
         </Text>
-        <Text style={styles.viewsText}>0 views</Text>
+        <Text style={styles.viewsText}>{views} views</Text>
       </View>
     </View>
   );
