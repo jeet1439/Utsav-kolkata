@@ -1,6 +1,6 @@
 # Utsav Kolkata 🪔  
 
-**Utsav Kolkata** is a mobile app built with React Native CLI, Node.js, and MongoDB that helps users discover the nearest Durga Puja pandals 
+Utsav Kolkata is a mobile app built with React Native CLI, Node.js, and MongoDB that helps users discover the nearest Durga Puja pandals 
 based on their live location, view routes from their current position, share and explore images of pandals, manage their profiles, and enjoy secure JWT-based authentication for a seamless festive experience.  
 ---
 ##  Features  
@@ -14,4 +14,5 @@ based on their live location, view routes from their current position, share and
   
 ## 📹 Check out the demo of the app on YouTube:  
 [![Utsav Kolkata Demo](https://img.youtube.com/vi/-e-8HpmG6ds/maxresdefault.jpg)](https://youtu.be/-e-8HpmG6ds?si=G6Gr4rnZHwrr5Ss5)
+
 
