@@ -11,3 +11,5 @@ Image Sharing – Allows users to upload and view images of different pandals.
 Profile Management – Users can update and manage their personal information.
 Secure Authentication – JWT-based login and registration ensure user security.
 Real-time Data – Provides up-to-date pandal information and posts.
+
+##  Check out the demo of the app on YouTube: [![Utsav Kolkata Demo](https://img.youtube.com/vi/-e-8HpmG6ds/maxresdefault.jpg)](https://youtu.be/-e-8HpmG6ds?si=G6Gr4rnZHwrr5Ss5)
