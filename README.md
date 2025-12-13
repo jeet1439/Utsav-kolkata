@@ -1,18 +1,13 @@
-# Utsav Kolkata 🪔  
+Utsav Kolkata
 
-Utsav Kolkata is a mobile app built with React Native CLI, Node.js, and MongoDB that helps users discover the nearest Durga Puja pandals 
-based on their live location, view routes from their current position, share and explore images of pandals, manage their profiles, and enjoy secure JWT-based authentication for a seamless festive experience.  
----
-##  Features  
+Utsav Kolkata is a mobile application developed using React Native CLI, Node.js, and MongoDB.
+The app helps users easily discover nearby Durga Puja pandals using their live location. Users can view routes to pandals, explore and share images, manage their profiles, and securely log in using JWT authentication, making the festive experience smooth and enjoyable.
 
--  **Find Nearest Pandal** – Get a list of Durga Puja Pandals based on your live location.  
--  **Route Navigation** – View directions from your current location to a selected pandal.  
--  **Image Sharing** – Post and view images for each pandal location.  
--  **Profile Management** – Update and manage user details.  
--  **Secure Authentication** – JWT-based login and registration for user security.  
--  **Real-time Updates** – Seamless data fetching for pandals and posts.
-  
-## 📹 Check out the demo of the app on YouTube:  
-[![Utsav Kolkata Demo](https://img.youtube.com/vi/-e-8HpmG6ds/maxresdefault.jpg)](https://youtu.be/-e-8HpmG6ds?si=G6Gr4rnZHwrr5Ss5)
+Features
 
-
+Nearest Pandal Search – Finds Durga Puja pandals based on the user’s current location.
+Route Guidance – Displays directions from the user’s location to the selected pandal.
+Image Sharing – Allows users to upload and view images of different pandals.
+Profile Management – Users can update and manage their personal information.
+Secure Authentication – JWT-based login and registration ensure user security.
+Real-time Data – Provides up-to-date pandal information and posts.
