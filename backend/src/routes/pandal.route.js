@@ -60,7 +60,6 @@ router.get("/nearest", authMiddleware, async (req, res) => {
   }
 });
 
-
 router.post("/:pandalId/featured-image", authMiddleware, upload.single("image"), async (req, res) => {
   try {
     const { pandalId } = req.params;
