@@ -2,9 +2,12 @@ import express from "express";
 import User from "../model/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import dotenv from 'dotenv';
+
+
 
 const router = express.Router();
-
+dotenv.config();
 const generateToken = (userId) => {
     return jwt.sign({userId}, process.env.JWT_SRC, { expiresIn: "1d"});
 }

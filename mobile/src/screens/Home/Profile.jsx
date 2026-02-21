@@ -1,509 +1,720 @@
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, FlatList, Animated, PermissionsAndroid, Platform, TextInput } from 'react-native';
 import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  FlatList,
+  Animated,
+  PermissionsAndroid,
+  Platform,
+  TextInput,
+  StatusBar,
+  Dimensions,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { launchImageLibrary } from "react-native-image-picker";
-import Modal from "react-native-modal";
-import RNFS from 'react-native-fs';
+import { launchImageLibrary } from 'react-native-image-picker';
+import Modal from 'react-native-modal';
 import axios from 'axios';
-import { Dimensions } from 'react-native';
 import chatIcon from '../../assets/chatIcon.png';
 
-const screenWidth = Dimensions.get('window').width - 40;
-const numColumns = 3;
-const imageMargin = 5;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const COLS = 3;
+const GAP = 1.5;
+const TILE = (SCREEN_WIDTH - GAP * (COLS - 1)) / COLS;
 
-const imageWidth = (screenWidth - (numColumns + 1) * imageMargin) / numColumns;
+const BASE_URL = 'http://192.168.0.100:3000';
+const C = {
+  bg: '#FFFFFF',
+  surface: '#FAFAFA',
+  card: '#FFFFFF',
+  text: '#0A0A0A',
+  textSub: '#737373',
+  textMuted: '#B2B2B2',
+  border: '#EBEBEB',
+  borderLight: '#F0F0F0',
+  accent: '#0095F6',
+  accentRed: '#E53E3E',
+  white: '#FFFFFF',
+  black: '#000000',
+};
+
+const requestGalleryPermission = async () => {
+  if (Platform.OS !== 'android') return true;
+  const perm =
+    Platform.Version >= 33
+      ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+      : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+  const result = await PermissionsAndroid.request(perm, {
+    title: 'Gallery Permission',
+    message: 'We need access to your gallery.',
+    buttonPositive: 'Allow',
+  });
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+};
+
+const pickImage = async () => {
+  const ok = await requestGalleryPermission();
+  if (!ok) { Alert.alert('Permission denied'); return null; }
+  return new Promise((resolve) => {
+    launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 }, (res) => {
+      if (res.didCancel || res.errorCode) return resolve(null);
+      resolve(res.assets?.[0]?.uri ?? null);
+    });
+  });
+};
+
+const StatBox = ({ label, value, onPress }) => (
+  <TouchableOpacity style={styles.statBox} onPress={onPress} activeOpacity={0.7}>
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const AvatarWithBadge = ({ uri, size = 86, onPress, uploading }) => (
+  <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ alignItems: 'center' }}>
+    <View style={[styles.avatarWrapper, { width: size, height: size, borderRadius: size / 2 }]}>
+      {uri ? (
+        <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+      ) : (
+        <View style={[{ width: size, height: size, borderRadius: size / 2 }, styles.avatarPlaceholder]}>
+          <Ionicons name="person" size={size * 0.42} color={C.textMuted} />
+        </View>
+      )}
+    </View>
+    <View style={styles.cameraEditBadge}>
+      {uploading ? (
+        <ActivityIndicator size="small" color={C.white} style={{ transform: [{ scale: 0.7 }] }} />
+      ) : (
+        <Ionicons name="add" size={11} color={C.white} />
+      )}
+    </View>
+  </TouchableOpacity>
+);
+
+const ImageTile = ({ uri, onLongPress }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  return (
+    <TouchableOpacity
+      onLongPress={() => onLongPress(uri)}
+      onPressIn={() => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true }).start()}
+      onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
+      delayLongPress={180}
+      activeOpacity={1}
+    >
+      <Animated.Image
+        source={{ uri }}
+        style={[styles.tile, { transform: [{ scale }] }]}
+      />
+    </TouchableOpacity>
+  );
+};
 
 const Profile = () => {
-  // const { user, setUser } = useContext(UserContext);
-  const [isModalVisible, setModalVisible] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [isBioModalVisible, setBioModalVisible] = useState(false);
-  const [bioText, setBioText] = useState("");
-  const [loadingBio, setLoadingBio] = useState(false);
-  const [previewImage, setPreviewImage] = useState(null);
   const [user, setUser] = useState(null);
-  const userId = AsyncStorage.getItem('userId');
-  
-  console.log(userId);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('grid');
+
+  const [featuredModal, setFeaturedModal] = useState(false);
+  const [featuredImg, setFeaturedImg] = useState(null);
+  const [uploadingFeatured, setUploadingFeatured] = useState(false);
+
+  const [uploadingProfile, setUploadingProfile] = useState(false);
+
+  const [bioModal, setBioModal] = useState(false);
+  const [bioText, setBioText] = useState('');
+  const [savingBio, setSavingBio] = useState(false);
+
+  const [previewUri, setPreviewUri] = useState(null);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    (async () => {
       try {
-        const token = await AsyncStorage.getItem("token");
-        const res = await axios.get("http://192.168.0.101:3000/api/user/me", {
-          headers: { Authorization: `Bearer ${token}` }
+        const token = await AsyncStorage.getItem('token');
+        const res = await axios.get(`${BASE_URL}/api/user/me`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
         setUser(res.data.user);
       } catch (err) {
-        console.error("Error fetching profile:", err);
+        console.error('fetchProfile:', err);
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchProfile();
+    })();
   }, []);
 
-
-
-  const requestGalleryPermission = async () => {
-    if (Platform.OS === "android") {
-      try {
-        let permission;
-
-        if (Platform.Version >= 33) {
-          permission = PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES;
-        } else {
-          permission = PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
-        }
-
-        const granted = await PermissionsAndroid.request(permission, {
-          title: "Gallery Permission",
-          message: "We need access to your gallery to upload featured images",
-          buttonPositive: "OK",
-        });
-
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const openGallery = async () => {
-    const hasPermission = await requestGalleryPermission();
-    if (!hasPermission) {
-      alert("Permission denied");
-      return;
-    }
-
-    launchImageLibrary({ mediaType: "photo", selectionLimit: 1 }, (response) => {
-      if (response.didCancel) return;
-      if (response.errorCode) {
-        console.log("Image Picker Error: ", response.errorMessage);
-        return;
-      }
-
-      if (response.assets && response.assets.length > 0) {
-        const selectedUri = response.assets[0].uri;
-        setSelectedImage(selectedUri);
-      }
-    });
-  };
-
-  const handlePost = async () => {
-    if (!selectedImage) {
-      alert("Please select an image first");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const token = await AsyncStorage.getItem("token");
-
-      const formData = new FormData();
-      formData.append("image", {
-        uri: selectedImage,
-        name: `featured.${selectedImage.split('.').pop()}`,
-        type: `image/${selectedImage.split('.').pop()}`,
-      });
-
-      const res = await axios.post(
-        "http://192.168.0.101:3000/api/user/featured-image",
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      setUser(res.data);
-      setLoading(false);
-      setSelectedImage(null);
-      setModalVisible(false);
-    } catch (error) {
-      console.error("Upload failed:", error);
-      alert("Failed to upload image");
-      setLoading(false);
-    }
-  };
-
-  const closeModal = () => {
-    setModalVisible(false);
-    setSelectedImage(null);
-  };
-
   useEffect(() => {
-    if (user?.bio) {
-      setBioText(user.bio);
-    }
+    if (user?.bio) setBioText(user.bio);
   }, [user]);
 
-
-  const openBioModal = () => {
-    setBioText(user.bio || "");
-    setBioModalVisible(true);
-  };
-
-  const closeBioModal = () => {
-    setBioModalVisible(false);
-  };
-
- const handleSaveBio = async () => {
-  try {
-    const res = await axios.post("http://192.168.0.101:3000/api/user/update-bio", {
-      userId: user._id,
-      bio: bioText.trim(),
-    });
-
-    if (res.data.success) {
-      setUser(res.data.user);  
-      closeBioModal();
-    } else {
-      Alert.alert("Error", res.data.message || "Failed to update bio");
+  const handleProfileImageUpload = async () => {
+    const uri = await pickImage();
+    if (!uri) return;
+    try {
+      setUploadingProfile(true);
+      const token = await AsyncStorage.getItem('token');
+      const ext = uri.split('.').pop();
+      const form = new FormData();
+      form.append('image', { uri, name: `profile.${ext}`, type: `image/${ext}` });
+      const res = await axios.post(`${BASE_URL}/api/user/profile-image`, form, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+      });
+      setUser(res.data.user ?? res.data);
+    } catch (err) {
+      console.error('profileUpload:', err);
+      Alert.alert('Upload failed', 'Could not update profile photo.');
+    } finally {
+      setUploadingProfile(false);
     }
-  } catch (error) {
-    console.error("Error updating bio:", error);
-    Alert.alert("Error", "Something went wrong. Please try again.");
-  }
- };
-
-
-  const AnimatedImageItem = ({ uri, onPreview }) => {
-    return (
-      <TouchableOpacity
-        onLongPress={() => onPreview(uri)}
-        delayLongPress={150}
-        activeOpacity={0.9}
-      >
-        <Image
-          source={{ uri }}
-          style={styles.featuredImage}
-        />
-      </TouchableOpacity>
-    );
   };
+
+  const handleFeaturedUpload = async () => {
+    if (!featuredImg) { Alert.alert('No image selected'); return; }
+    try {
+      setUploadingFeatured(true);
+      const token = await AsyncStorage.getItem('token');
+      const ext = featuredImg.split('.').pop();
+      const form = new FormData();
+      form.append('image', { uri: featuredImg, name: `featured.${ext}`, type: `image/${ext}` });
+      const res = await axios.post(`${BASE_URL}/api/user/featured-image`, form, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+      });
+      setUser(res.data);
+      setFeaturedImg(null);
+      setFeaturedModal(false);
+    } catch (err) {
+      console.error('featuredUpload:', err);
+      Alert.alert('Upload failed', 'Please try again.');
+    } finally {
+      setUploadingFeatured(false);
+    }
+  };
+
+  const handleSaveBio = async () => {
+    try {
+      setSavingBio(true);
+      const res = await axios.post(`${BASE_URL}/api/user/update-bio`, {
+        userId: user._id,
+        bio: bioText.trim(),
+      });
+      if (res.data.success) {
+        setUser(res.data.user);
+        setBioModal(false);
+      } else {
+        Alert.alert('Error', res.data.message || 'Failed to update bio.');
+      }
+    } catch (err) {
+      console.error('saveBio:', err);
+      Alert.alert('Error', 'Something went wrong.');
+    } finally {
+      setSavingBio(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={C.black} />
+      </View>
+    );
+  }
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text style={styles.loadingText}>Loading profile...</Text>
-      </SafeAreaView>
+      <View style={styles.centered}>
+        <Ionicons name="alert-circle-outline" size={44} color={C.textMuted} />
+        <Text style={[styles.mutedText, { marginTop: 10 }]}>Couldn't load profile.</Text>
+      </View>
     );
   }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View contentContainerStyle={{ paddingBottom: 40 }}>
-        <View style={styles.headerRow}>
-          <View style={styles.leftSection}>
-            <Image
-              source={{ uri: user?.profileImage?.[0] }}
-              style={styles.profileImage}
-            />
-            <View style={styles.usernameContainer}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={styles.username}>{user?.username}</Text>
-                <Text style={{ marginVertical: 5 }}>0 views</Text>
-                <TouchableOpacity onPress={() => console.log("Pressed!")}>
-                <View style={{ position: "relative" }}>
-                  <Image
-                    source={chatIcon}
-                    style={{ width: 30, height: 30 }}
-                  />
-                  {/* Red Circle Badge */}
-                  <View
-                    style={{
-                      position: "absolute",
-                      right: -5,
-                      top: -5,
-                      backgroundColor: "red",
-                      borderRadius: 10,
-                      width: 18,
-                      height: 18,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ color: "white", fontSize: 12, fontWeight: "bold" }}>2</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-              </View>
-              <TouchableOpacity style={styles.btnStyle} onPress={() => setModalVisible(true)}>
-                <Text style={styles.uploadBtnTxt}>Add Featured Image +</Text>
-              </TouchableOpacity>
-            </View>
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[3]}
+        contentContainerStyle={{ paddingBottom: 60 }}
+      >
+        <View style={styles.topBar}>
+          <View style={styles.topBarLeft}>
+            <Text style={styles.usernameHeader}>{user?.username ?? 'username'}</Text>
+            <Ionicons name="chevron-down" size={15} color={C.text} style={{ marginTop: 2 }} />
           </View>
-
-        </View>
-
-        {/* Bio */}
-        {user?.bio ? (
-          <Text onLongPress={openBioModal} style={styles.bio}>{user?.bio || ""}</Text>
-        ) : (
-          <Text onLongPress={openBioModal} style={styles.noBio}>No bio added yet</Text>
-        )}
-
-        <Modal
-          isVisible={isBioModalVisible}
-          onBackdropPress={closeBioModal}
-          style={{ justifyContent: "center", margin: 20 }}
-        >
-          <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 10 }}>
-            <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
-              {user?.bio ? "Update Bio" : "Add Bio"}
-            </Text>
-
-            <TextInput
-              value={bioText}
-              onChangeText={setBioText}
-              placeholder="Write something about yourself..."
-              style={{
-                borderColor: "#ccc",
-                borderWidth: 1,
-                borderRadius: 8,
-                padding: 10,
-                height: 100,
-                textAlignVertical: "top",
-              }}
-              multiline
-            />
-
-            <TouchableOpacity
-              style={{
-                backgroundColor: "#ff5100ff",
-                padding: 12,
-                marginTop: 15,
-                borderRadius: 8,
-                alignItems: "center",
-                opacity: loadingBio ? 0.6 : 1,
-              }}
-              disabled={loadingBio}
-              onPress={handleSaveBio}
-            >
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                {loadingBio ? "Saving..." : "Save"}
-              </Text>
+          <View style={styles.topBarRight}>
+            <TouchableOpacity onPress={() => setFeaturedModal(true)} style={styles.iconBtn}>
+              <Ionicons name="add-outline" size={26} color={C.text} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => console.log('menu')} style={styles.iconBtn}>
+              <Image source={chatIcon} style={{ width: 22, height: 22, tintColor: C.text }} />
             </TouchableOpacity>
           </View>
-        </Modal>
+        </View>
 
-      </View>
-
-      <View style={{ marginVertical: 20 }}>
-        {user?.featuredImages && user?.featuredImages.length > 0 ? (
-          <FlatList
-            data={user?.featuredImages}
-            keyExtractor={(item, index) => index.toString()}
-            numColumns={3}
-            renderItem={({ item }) => (
-              <AnimatedImageItem uri={item} onPreview={(uri) => setPreviewImage(uri)} />
-            )}
-            contentContainerStyle={{ paddingBottom: 50 }}
+        <View style={styles.profileInfoRow}>
+          <AvatarWithBadge
+            uri={user?.profileImage?.[0]}
+            size={86}
+            onPress={handleProfileImageUpload}
+            uploading={uploadingProfile}
           />
-        ) : (
-          <Text style={{ color: '#999', fontSize: 14 }}>No featured images yet</Text>
-        )}
-      </View>
 
+          <View style={styles.statsRow}>
+            <StatBox label="Posts" value={user?.featuredImages?.length ?? 0} />
+            <StatBox label="Followers" value="0" />
+            <StatBox label="Following" value="0" />
+          </View>
+        </View>
 
-      <Modal
-        isVisible={isModalVisible}
-        style={styles.modal}
-        onBackdropPress={closeModal}
-        swipeDirection="down"
-      >
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Upload Featured Image</Text>
+        <View style={styles.bioBlock}>
+          <Text style={styles.displayName}>{user?.username}</Text>
 
-          {selectedImage ? (
-            <Image
-              source={{ uri: selectedImage }}
-              style={styles.previewImage}
-            />
+          {user?.bio ? (
+            <TouchableOpacity onLongPress={() => { setBioText(user.bio); setBioModal(true); }} activeOpacity={0.85}>
+              <Text style={styles.bioText}>{user.bio}</Text>
+            </TouchableOpacity>
           ) : (
-            <View style={styles.previewPlaceholder}>
-              <Ionicons name="image-outline" size={40} color="#ccc" onPress={openGallery} />
-              <Text style={{ color: "#aaa", marginTop: 5 }} onPress={openGallery}>No Image Selected</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.addBioBtn}
+              onPress={() => { setBioText(''); setBioModal(true); }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.addBioText}>+ Add bio</Text>
+            </TouchableOpacity>
           )}
 
-          {/* Pick Image Button */}
-          {/* <TouchableOpacity style={styles.modalButton} onPress={openGallery}>
-              <Ionicons name="images-outline" size={20} color="#fff" />
-              <Text style={styles.modalButtonText}>Pick from Gallery</Text>
-            </TouchableOpacity> */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionBtn} activeOpacity={0.8}>
+              <Text style={styles.actionBtnText}>Edit profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionBtn} activeOpacity={0.8}>
+              <Text style={styles.actionBtnText}>Share profile</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionBtn, styles.actionBtnIcon]} activeOpacity={0.8}>
+              <Ionicons name="person-add-outline" size={16} color={C.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-          {/* Post Button */}
+        <View style={styles.tabBar} />
+
+        {activeTab === 'grid' ? (
+          user?.featuredImages?.length > 0 ? (
+            <FlatList
+              data={user.featuredImages}
+              keyExtractor={(_, i) => i.toString()}
+              numColumns={COLS}
+              scrollEnabled={false}
+              renderItem={({ item }) => (
+                <ImageTile uri={item} onLongPress={setPreviewUri} />
+              )}
+              ItemSeparatorComponent={() => <View style={{ height: GAP }} />}
+              columnWrapperStyle={{ gap: GAP }}
+            />
+          ) : (
+            <View style={styles.emptyGrid}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="camera-outline" size={34} color={C.text} />
+              </View>
+              <Text style={styles.emptyTitle}>Share Photos</Text>
+              <Text style={styles.emptySubtitle}>
+                When you share photos, they will appear on your profile.
+              </Text>
+              <TouchableOpacity onPress={() => setFeaturedModal(true)} activeOpacity={0.8}>
+                <Text style={styles.emptyLink}>Share your first photo</Text>
+              </TouchableOpacity>
+            </View>
+          )
+        ) : (
+          <View style={styles.emptyGrid}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="pricetag-outline" size={34} color={C.text} />
+            </View>
+            <Text style={styles.emptyTitle}>Photos of You</Text>
+            <Text style={styles.emptySubtitle}>
+              When people tag you in photos, they'll appear here.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/*New Post Modal */}
+      <Modal
+        statusBarTranslucent={true}
+        isVisible={featuredModal}
+        onBackdropPress={() => { setFeaturedModal(false); setFeaturedImg(null); }}
+        style={styles.bottomModal}
+        swipeDirection="down"
+        onSwipeComplete={() => { setFeaturedModal(false); setFeaturedImg(null); }}
+        backdropColor="#000"
+        backdropOpacity={0.45}
+        useNativeDriverForBackdrop
+      >
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetTitleRow}>
+            <Text style={styles.sheetTitle}>New Post</Text>
+            <TouchableOpacity onPress={() => { setFeaturedModal(false); setFeaturedImg(null); }}>
+              <Ionicons name="close" size={22} color={C.text} />
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
-            style={[
-              styles.modalButton,
-              { marginTop: 10 },
-              loading && { opacity: 0.6 } // make button look disabled
-            ]}
-            onPress={handlePost}
-            disabled={loading} // disables touch when loading
+            style={styles.imagePicker}
+            onPress={async () => { const uri = await pickImage(); if (uri) setFeaturedImg(uri); }}
+            activeOpacity={0.85}
           >
-            {loading ? (
-              <Text style={styles.modalButtonText}>Adding...</Text>
+            {featuredImg ? (
+              <Image source={{ uri: featuredImg }} style={styles.pickedImage} />
             ) : (
-              <>
-                <Text style={styles.modalButtonText}>Add Featured</Text>
-                <Ionicons name="checkmark-outline" size={20} color="#fff" />
-              </>
+              <View style={styles.pickPlaceholder}>
+                <Ionicons name="images-outline" size={36} color={C.textMuted} />
+                <Text style={styles.pickText}>Tap to select from library</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {featuredImg && (
+            <TouchableOpacity
+              style={styles.changeRow}
+              onPress={async () => { const uri = await pickImage(); if (uri) setFeaturedImg(uri); }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh-outline" size={14} color={C.accent} />
+              <Text style={styles.changeText}>Select different photo</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.primaryBtn, (!featuredImg || uploadingFeatured) && { opacity: 0.5 }]}
+            onPress={handleFeaturedUpload}
+            disabled={!featuredImg || uploadingFeatured}
+          >
+            {uploadingFeatured ? (
+              <ActivityIndicator color={C.white} />
+            ) : (
+              <Text style={styles.primaryBtnText}>Share</Text>
             )}
           </TouchableOpacity>
         </View>
       </Modal>
 
+      {/* Bio Modal */}
       <Modal
-        isVisible={previewImage}
-        onBackdropPress={() => setPreviewImage(null)}
-        style={{ margin: 0, justifyContent: "center", alignItems: "center" }}
-        animationIn="fadeIn"
-        animationOut="fadeOut"
-        animationInTiming={300}  
-        animationOutTiming={300}
-        backdropTransitionInTiming={300}
-        backdropTransitionOutTiming={300}
+        statusBarTranslucent={true}
+        isVisible={bioModal}
+        onBackdropPress={() => setBioModal(false)}
+        style={styles.bottomModal}
+        swipeDirection="down"
+        onSwipeComplete={() => setBioModal(false)}
+        backdropColor="#000"
+        backdropOpacity={0.45}
+        useNativeDriverForBackdrop
       >
-        <View style={{ width: "100%", height: "80%", justifyContent: "center", alignItems: "center" }}>
-          <Image
-            source={{ uri: previewImage }}
-            style={{ width: "90%", height: "70%", borderRadius: 8, resizeMode: "contain" }}
-            resizeMode='cover'
-          />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetTitleRow}>
+            <Text style={styles.sheetTitle}>{user?.bio ? 'Edit Bio' : 'Add Bio'}</Text>
+            <TouchableOpacity onPress={() => setBioModal(false)}>
+              <Ionicons name="close" size={22} color={C.text} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.textInputWrap}>
+            <TextInput
+              value={bioText}
+              onChangeText={setBioText}
+              placeholder="Write something about you…"
+              placeholderTextColor={C.textMuted}
+              multiline
+              maxLength={150}
+              style={styles.bioInput}
+            />
+            <View style={styles.charRow}>
+              <View style={[styles.charBar, { width: `${(bioText.length / 150) * 100}%` }]} />
+            </View>
+            <Text style={styles.charCount}>{bioText.length}/150</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.primaryBtn, savingBio && { opacity: 0.6 }]}
+            onPress={handleSaveBio}
+            disabled={savingBio}
+          >
+            {savingBio ? (
+              <ActivityIndicator color={C.white} />
+            ) : (
+              <Text style={styles.primaryBtnText}>Done</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </Modal>
 
+      {/* Image Preview Modal */}
+      <Modal
+        statusBarTranslucent={true}
+        isVisible={!!previewUri}
+        onBackdropPress={() => setPreviewUri(null)}
+        style={{ margin: 0, justifyContent: 'center', alignItems: 'center' }}
+        animationIn="fadeIn"
+        animationOut="fadeOut"
+        animationInTiming={180}
+        animationOutTiming={180}
+        backdropColor="#000"
+        backdropOpacity={0.92}
+        useNativeDriverForBackdrop
+      >
+        <Image
+          source={{ uri: previewUri }}
+          style={styles.previewFull}
+          resizeMode="contain"
+        />
+        <View style={styles.previewActions}>
+          <TouchableOpacity style={styles.previewActionBtn}>
+            <Ionicons name="heart-outline" size={22} color={C.white} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.previewActionBtn}>
+            <Ionicons name="paper-plane-outline" size={22} color={C.white} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.previewActionBtn}>
+            <Ionicons name="bookmark-outline" size={22} color={C.white} />
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  headerRow: {
+  root: { flex: 1, backgroundColor: C.bg },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+  mutedText: { color: C.textMuted, fontSize: 14 },
+
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: C.bg,
   },
-  leftSection: {
+  topBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  usernameHeader: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: C.text,
+    letterSpacing: -0.3,
+  },
+  iconBtn: { padding: 6 },
+
+  profileInfoRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 12,
+    gap: 24,
   },
-  profileImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+
+  avatarWrapper: {
     borderWidth: 1,
-    borderColor: '#3a94fcff',
-    marginRight: 15,
+    borderColor: C.border,
+    overflow: 'hidden',
   },
-  usernameContainer: {
-    flex: 1,
-  },
-  username: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  btnStyle: {
-    height: 40,
-    width: '100%',
-    borderRadius: 8,
-    backgroundColor: 'beige',
+  avatarPlaceholder: {
+    backgroundColor: C.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bio: {
-    fontSize: 14,
-    color: '#252525ff',
-    marginTop: 5,
-    lineHeight: 20,
+  cameraEditBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: C.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: C.white,
   },
-  noBio: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 5,
+
+  statsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
   },
-  featuredImage: {
-    width: imageWidth,
-    height: imageWidth,
-    borderRadius: 5,
-    marginHorizontal: imageMargin / 2,
-    marginVertical: imageMargin / 2,
+  statBox: { alignItems: 'center', paddingHorizontal: 4 },
+  statValue: { fontSize: 17, fontWeight: '700', color: C.text, letterSpacing: -0.2 },
+  statLabel: { fontSize: 12.5, color: C.text, marginTop: 1, fontWeight: '400' },
+
+  bioBlock: {
+    paddingHorizontal: 16,
+    paddingBottom: 14,
   },
-  uploadBtnTxt: {
-    fontSize: 15,
-    fontWeight: "400"
-  },
-  modal: {
-    justifyContent: "flex-end",
-    margin: 0
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 15
-  },
-  modalButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#ff6600ff",
-    padding: 12,
-    borderRadius: 10
-  },
-  modalButtonText: {
-    color: "#fff",
-    marginLeft: 8,
-    fontSize: 16,
-  },
-  previewImage: {
-    width: "100%",
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 15,
-  },
-  previewPlaceholder: {
-    width: "100%",
-    height: 200,
-    borderRadius: 10,
+  displayName: { fontSize: 13.5, fontWeight: '600', color: C.text, marginBottom: 2 },
+  bioText: { fontSize: 13.5, color: C.text, lineHeight: 20, marginBottom: 12 },
+  addBioBtn: { marginBottom: 12 },
+  addBioText: { fontSize: 13.5, color: C.accent, fontWeight: '500' },
+
+  actionRow: { flexDirection: 'row', gap: 8 },
+  actionBtn: {
+    flex: 1,
+    backgroundColor: C.surface,
+    borderRadius: 9,
+    paddingVertical: 7,
     borderWidth: 1,
-    borderColor: "#ccc",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 15,
-  }
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionBtnIcon: { flex: 0, paddingHorizontal: 12 },
+  actionBtnText: { fontSize: 13.5, fontWeight: '600', color: C.text },
+
+  tabBar: {
+    backgroundColor: C.bg,
+    borderTopWidth: 0.5,
+    borderTopColor: C.border,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+    height: 1,
+  },
+
+  tile: {
+    width: TILE,
+    height: TILE,
+    backgroundColor: C.borderLight,
+  },
+
+  emptyGrid: {
+    alignItems: 'center',
+    paddingVertical: 56,
+    paddingHorizontal: 36,
+    gap: 10,
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: C.text,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: C.text },
+  emptySubtitle: { fontSize: 14, color: C.textSub, textAlign: 'center', lineHeight: 20 },
+  emptyLink: { fontSize: 14, color: C.accent, fontWeight: '600', marginTop: 4 },
+
+  bottomModal: { justifyContent: 'flex-end', margin: 0 },
+  sheet: {
+    backgroundColor: C.white,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    paddingBottom: 44,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: C.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 18,
+  },
+  sheetTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  sheetTitle: { fontSize: 16, fontWeight: '700', color: C.text },
+
+  imagePicker: {
+    borderRadius: 12,
+    height: 220,
+    overflow: 'hidden',
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    marginBottom: 12,
+  },
+  pickPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pickText: { fontSize: 14, color: C.textMuted, fontWeight: '400' },
+  pickedImage: { width: '100%', height: '100%' },
+
+  changeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  changeText: { fontSize: 13, color: C.accent, fontWeight: '500' },
+
+  primaryBtn: {
+    backgroundColor: C.accent,
+    paddingVertical: 13,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  primaryBtnText: { color: C.white, fontSize: 15, fontWeight: '700' },
+
+  textInputWrap: {
+    backgroundColor: C.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 14,
+    marginBottom: 16,
+  },
+  bioInput: {
+    color: C.text,
+    fontSize: 15,
+    lineHeight: 22,
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+  charRow: {
+    height: 2,
+    backgroundColor: C.border,
+    borderRadius: 1,
+    marginTop: 10,
+    overflow: 'hidden',
+  },
+  charBar: {
+    height: '100%',
+    backgroundColor: C.accent,
+    borderRadius: 1,
+  },
+  charCount: { fontSize: 11.5, color: C.textMuted, textAlign: 'right', marginTop: 6 },
+
+  previewFull: { width: SCREEN_WIDTH, height: SCREEN_WIDTH },
+  previewActions: {
+    position: 'absolute',
+    bottom: 60,
+    right: 16,
+    gap: 20,
+    alignItems: 'center',
+  },
+  previewActionBtn: { padding: 6 },
 });
 
 export default Profile;
