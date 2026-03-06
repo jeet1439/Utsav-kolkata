@@ -1,4 +1,3 @@
-// models/Pandal.js
 import mongoose from "mongoose";
 
 

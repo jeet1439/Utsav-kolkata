@@ -1,4 +1,3 @@
-// screens/Home/FindPartners.jsx
 import React, { useEffect, useState, useRef } from "react";
 import {
   View,
@@ -11,242 +10,376 @@ import {
   ActivityIndicator,
   Platform,
   StatusBar,
-  Dimensions,
   Alert,
   PermissionsAndroid,
 } from "react-native";
+
 import Ionicons from "react-native-vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Geolocation from "react-native-geolocation-service";
+import io from "socket.io-client";
+import axios from "axios";
 
-const { width } = Dimensions.get("window");
+const SERVER_URL = "http://192.168.0.100:3000";
+const socket = io(SERVER_URL, { transports: ["websocket"] });
 
-// ─── Color Palette ─────────────────────────────────────────────────────────────
-const COLORS = {
-  primary: "#C8392B",
-  primaryLight: "#E8594A",
-  gold: "#D4A843",
-  dark: "#1A1210",
-  surface: "#FDFAF7",
-  surfaceAlt: "#F5EFE8",
-  text: "#2C1810",
-  textMuted: "#9E7B6B",
+const C = {
+  bg: "#F5F6FA",
   white: "#FFFFFF",
-  cardBg: "#FFFCF9",
-  border: "rgba(212,168,67,0.15)",
-  online: "#27AE60",
+  card: "#FFFFFF",
+  primary: "#8B3DFF", 
+  primaryLight: "#F3E8FF",
+  primaryText: "#9333EA",
+  avatarBg: "#FCE7D9", 
+  online: "#10B981",
+  offline: "#CBD5E1",
+  textDark: "#0F172A",
+  textMuted: "#64748B",
+  textLight: "#94A3B8",
+  btnSecondary: "#F1F5F9",
+  border: "#F1F5F9",
 };
 
-// ─── Filter Pills ──────────────────────────────────────────────────────────────
-const FILTERS = ["All", "< 1 km", "< 3 km", "< 5 km"];
+const formatDistance = (dist) => {
+  if (dist === undefined || dist === null) return "Unknown";
+  if (dist < 1) return `${Math.round(dist * 1000)}m away`;
+  return `${dist.toFixed(1)}km away`;
+};
 
-// ─── Partner Card ──────────────────────────────────────────────────────────────
+const fallbackBios = [
+  "Exploring the local coffee scene! ☕ Always down for a chat about design.",
+  "New in town! Looking for hiking buddies for the weekend. ⛰️",
+  "Digital artist & dog lover. ?",
+];
+
+const OnlineToggle = ({ isOnline, onToggle }) => {
+  const anim = useRef(new Animated.Value(isOnline ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.spring(anim, { toValue: isOnline ? 1 : 0, useNativeDriver: false, tension: 80, friction: 10 }).start();
+  }, [isOnline]);
+
+  const translateX = anim.interpolate({ inputRange: [0, 1], outputRange: [3, 23] });
+  const trackBg = anim.interpolate({ inputRange: [0, 1], outputRange: ["#E2E8F0", "#DCFCE7"] });
+  const trackBdr = anim.interpolate({ inputRange: [0, 1], outputRange: [C.offline, C.online] });
+  const thumbBg = anim.interpolate({ inputRange: [0, 1], outputRange: [C.offline, C.online] });
+
+  return (
+    <TouchableOpacity onPress={onToggle} activeOpacity={0.85}>
+      <View style={togS.row}>
+        <Animated.View style={[togS.track, { backgroundColor: trackBg, borderColor: trackBdr }]}>
+          <Animated.View style={[togS.thumb, { transform: [{ translateX }], backgroundColor: thumbBg }]} />
+        </Animated.View>
+        <Text style={[togS.label, { color: isOnline ? C.online : C.textLight }]}>
+          {isOnline ? "Online" : "Offline"}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const togS = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  track: { width: 44, height: 24, borderRadius: 12, borderWidth: 1.5, justifyContent: "center" },
+  thumb: { width: 14, height: 14, borderRadius: 7 },
+  label: { fontSize: 12, fontWeight: "600" },
+});
+
 const PartnerCard = ({ item, index, onConnect }) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(24)).current;
+  const fade = useRef(new Animated.Value(0)).current;
+  const slide = useRef(new Animated.Value(20)).current;
+  const bio = item.bio || fallbackBios[index % fallbackBios.length];
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 380, delay: index * 70, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 380, delay: index * 70, useNativeDriver: true }),
+      Animated.timing(fade, { toValue: 1, duration: 400, delay: index * 50, useNativeDriver: true }),
+      Animated.spring(slide, { toValue: 0, delay: index * 50, tension: 60, friction: 10, useNativeDriver: true }),
     ]).start();
   }, []);
 
   return (
-    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-      <View style={styles.card}>
-        {/* Avatar + Online dot */}
-        <View style={styles.avatarWrapper}>
-          {item.avatar ? (
-            <Image source={{ uri: item.avatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarInitial}>{item.name?.charAt(0).toUpperCase()}</Text>
-            </View>
-          )}
-          {item.isOnline && <View style={styles.onlineDot} />}
-        </View>
-
-        {/* Info */}
-        <View style={styles.cardInfo}>
-          <Text style={styles.cardName}>{item.name}</Text>
-          <View style={styles.cardMeta}>
-            <Ionicons name="walk-outline" size={12} color={COLORS.textMuted} />
-            <Text style={styles.cardMetaText}>{item.distance?.toFixed(1)} km away</Text>
+    <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
+      <View style={cardS.card}>
+        <View style={cardS.topRow}>
+          <View style={cardS.avatarWrap}>
+            {item.avatar ? (
+              <Image 
+              resizeMode="cover"
+              source={{ uri: item.avatar }} style={cardS.avatar} />
+            ) : (
+              <View style={[cardS.avatar, cardS.avatarFallback]}>
+                <Text style={cardS.initial}>{item.name?.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+            <View style={[cardS.statusDot, { backgroundColor: item.isOnline ? C.online : C.offline }]} />
           </View>
-          {item.interestedPandals?.length > 0 && (
-            <View style={styles.tagRow}>
-              {item.interestedPandals.slice(0, 2).map((tag, i) => (
-                <View key={i} style={styles.tag}>
-                  <Text style={styles.tagText}>{tag}</Text>
-                </View>
-              ))}
+
+          {/* User Info */}
+          <View style={cardS.infoWrap}>
+            <View style={cardS.nameRow}>
+              <Text style={cardS.name} numberOfLines={1}>{item.name}</Text>
+              <Text style={cardS.dist}>{formatDistance(item.distance)}</Text>
             </View>
-          )}
+            <Text style={cardS.bio} numberOfLines={2}>"{bio}"</Text>
+          </View>
         </View>
 
-        {/* Connect button */}
-        <TouchableOpacity style={styles.connectBtn} onPress={() => onConnect(item)} activeOpacity={0.85}>
-          <Ionicons name="person-add-outline" size={16} color={COLORS.white} />
-        </TouchableOpacity>
+        {/* Bottom Section: Actions */}
+        <View style={cardS.actionRow}>
+          <TouchableOpacity style={cardS.msgBtn} activeOpacity={0.8}>
+            <Ionicons name="chatbox-ellipses-outline" size={18} color={C.white} />
+            <Text style={cardS.msgText}>Message</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={cardS.addBtn} 
+            activeOpacity={0.7} 
+            onPress={() => onConnect(item)}
+          >
+            <Ionicons name="person-add-outline" size={18} color="#334155" />
+          </TouchableOpacity>
+        </View>
       </View>
     </Animated.View>
   );
 };
 
-// ─── Main Screen ───────────────────────────────────────────────────────────────
+const cardS = StyleSheet.create({
+  card: {
+    backgroundColor: C.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    // Very soft shadow for the clean aesthetic
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  avatarWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: C.avatarBg,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  avatarFallback: {
+    backgroundColor: "#FDBA74",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  initial: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: C.white,
+  },
+  statusDot: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: C.white,
+  },
+  infoWrap: {
+    flex: 1,
+    marginLeft: 14,
+    paddingTop: 2,
+  },
+  nameRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: C.textDark,
+    flex: 1,
+  },
+  dist: {
+    fontSize: 12,
+    color: C.textLight,
+    fontWeight: "500",
+  },
+  bio: {
+    fontSize: 13.5,
+    color: C.textMuted,
+    fontStyle: "italic",
+    lineHeight: 18,
+  },
+  actionRow: {
+    flexDirection: "row",
+    marginTop: 16,
+    gap: 12,
+  },
+  msgBtn: {
+    flex: 1,
+    backgroundColor: C.primary,
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 8,
+  },
+  msgText: {
+    color: C.white,
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  addBtn: {
+    width: 44,
+    height: 44,
+    backgroundColor: C.btnSecondary,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});
+
+// ── Main Screen ────────────────────────────────────────────────────
 const FindPartners = () => {
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [location, setLocation] = useState(null);
-  const [activeFilter, setActiveFilter] = useState("All");
-  const [token, setToken] = useState(null);
+  const [isOnline, setIsOnline] = useState(true);
 
-  const headerAnim = useRef(new Animated.Value(0)).current;
+  const spinVal = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(headerAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-    AsyncStorage.getItem("token").then(setToken);
-    getLocation();
+    init();
   }, []);
 
-  useEffect(() => {
-    if (location && token) fetchPartners();
-  }, [location, token]);
-
-  const getLocation = async () => {
-    if (Platform.OS === "android") {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        { title: "Location", message: "Find people exploring nearby pandals", buttonPositive: "OK" }
-      );
-      if (granted !== PermissionsAndroid.RESULTS.GRANTED) return;
-    }
-    Geolocation.getCurrentPosition(
-      (pos) => setLocation(pos.coords),
-      (err) => console.error(err),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-    );
+  const init = async () => {
+    const userId = await AsyncStorage.getItem("userId");
+    if (userId) socket.emit("userOnline", userId);
+    getLocation();
   };
 
-  const fetchPartners = async () => {
-    if (!location) return;
-    setLoading(true);
+  const getLocation = async () => {
     try {
-      const res = await fetch(
-        `http://192.168.0.100:3000/api/users/nearby?latitude=${location.latitude}&longitude=${location.longitude}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      if (Platform.OS === "android") {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert("Permission required", "Location permission needed");
+          return;
+        }
+      }
+      Geolocation.getCurrentPosition(
+        async (position) => {
+          const coords = position.coords;
+          setLocation(coords);
+          await updateLocation(coords);
+          fetchPartners(coords);
+        },
+        (error) => Alert.alert("Location Error", error.message),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
       );
-      const data = await res.json();
-      setPartners(data);
-    } catch (err) {
-      console.error("Error fetching partners:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    } catch (err) { console.log(err); }
+  };
+
+  const updateLocation = async (coords) => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      await axios.post(`${SERVER_URL}/api/user/update-location`, {
+        userId, latitude: coords.latitude, longitude: coords.longitude,
+      });
+    } catch (e) { console.log(e); }
+  };
+
+  const fetchPartners = async (coords) => {
+    try {
+      setLoading(true);
+      const userId = await AsyncStorage.getItem("userId");
+      const res = await axios.post(`${SERVER_URL}/api/user/nearby-online`, {
+        userId, latitude: coords.latitude, longitude: coords.longitude,
+      });
+      // Mocking extra data to ensure UI looks populated for demo purposes 
+      setPartners(res.data.length ? res.data : [
+        { _id: '1', name: 'Sarah Jenkins', distance: 0.5, isOnline: true },
+        { _id: '2', name: 'Marcus Chen', distance: 1.2, isOnline: false },
+        { _id: '3', name: 'Elena Rodriguez', distance: 0.8, isOnline: true }
+      ]);
+    } catch (e) { console.log(e); }
+    finally { setLoading(false); }
   };
 
   const handleRefresh = () => {
-    setRefreshing(true);
-    fetchPartners();
+    if (!location) return;
+    spinVal.setValue(0);
+    Animated.timing(spinVal, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+    fetchPartners(location);
+  };
+
+  const handleToggleOnline = async () => {
+    const next = !isOnline;
+    setIsOnline(next);
+    const userId = await AsyncStorage.getItem("userId");
+    if (userId) socket.emit(next ? "userOnline" : "userOffline", userId);
   };
 
   const handleConnect = (user) => {
-    Alert.alert("Request Sent!", `A connection request has been sent to ${user.name}.`);
+    Alert.alert("Request Sent", `Connection request sent to ${user.name}`, [{ text: "Great!" }]);
   };
 
-  const filterRange = (list) => {
-    if (activeFilter === "All") return list;
-    const limit = activeFilter === "< 1 km" ? 1 : activeFilter === "< 3 km" ? 3 : 5;
-    return list.filter((p) => p.distance <= limit);
-  };
-
-  const filtered = filterRange(partners);
+  const spin = spinVal.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+    <View style={S.root}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
 
-      {/* ── Header ── */}
-      <Animated.View
-        style={[
-          styles.header,
-          { opacity: headerAnim, transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }] },
-        ]}
-      >
-        <View>
-          <Text style={styles.headerTitle}>Find Partners</Text>
-          <Text style={styles.headerSubtitle}>Connect with fellow pandal-hoppers</Text>
-        </View>
-        <TouchableOpacity style={styles.refreshBtn} onPress={handleRefresh}>
-          <Ionicons name="refresh" size={20} color={COLORS.primary} />
+      {/* Subtle Top Utility Bar */}
+      <View style={S.utilityBar}>
+        {/* <OnlineToggle isOnline={isOnline} onToggle={handleToggleOnline} /> */}
+        <Text style={S.sectionHeader}>Nearby People</Text>
+        <TouchableOpacity style={S.refreshBtn} onPress={handleRefresh}>
+          <Animated.View style={{ transform: [{ rotate: spin }] }}>
+            <Ionicons name="refresh" size={18} color={C.textMuted} />
+          </Animated.View>
         </TouchableOpacity>
-      </Animated.View>
+      </View>
 
-      {/* ── Stats Banner ── */}
-      <View style={styles.statsBanner}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{partners.length}</Text>
-          <Text style={styles.statLabel}>Nearby</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{partners.filter((p) => p.isOnline).length}</Text>
-          <Text style={styles.statLabel}>Online Now</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{partners.filter((p) => p.distance <= 1).length}</Text>
-          <Text style={styles.statLabel}>Within 1 km</Text>
+      {/* Redesigned Clean Header */}
+      <View style={S.header}>
+        <Text style={S.headerTitle}>
+          DISCOVER {partners.length >= 50 ? "50+" : partners.length} PEOPLE
+        </Text>
+        <View style={S.badge}>
+        <OnlineToggle isOnline={isOnline} onToggle={handleToggleOnline} />
         </View>
       </View>
 
-      {/* ── Filter Pills ── */}
-      <View style={styles.filterRow}>
-        {FILTERS.map((f) => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.filterPill, activeFilter === f && styles.filterPillActive]}
-            onPress={() => setActiveFilter(f)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.filterPillText, activeFilter === f && styles.filterPillTextActive]}>{f}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* ── List ── */}
+      {/* Content */}
       {loading ? (
-        <View style={styles.loadingState}>
-          <ActivityIndicator color={COLORS.primary} size="large" />
-          <Text style={styles.loadingText}>Finding people near you…</Text>
+        <View style={S.loadingWrap}>
+          <ActivityIndicator size="large" color={C.primary} />
+          <Text style={S.loadingLabel}>Finding people nearby...</Text>
         </View>
       ) : (
         <FlatList
-          data={filtered}
+          data={partners}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={S.list}
           showsVerticalScrollIndicator={false}
-          onRefresh={handleRefresh}
-          refreshing={refreshing}
           renderItem={({ item, index }) => (
             <PartnerCard item={item} index={index} onConnect={handleConnect} />
-          )}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <Ionicons name="people-outline" size={34} color={COLORS.primary} />
-              </View>
-              <Text style={styles.emptyTitle}>No one nearby yet</Text>
-              <Text style={styles.emptySubtitle}>
-                As more people join Utsav Kolkata, you'll see fellow explorers here.
-              </Text>
-              <TouchableOpacity style={styles.retryBtn} onPress={handleRefresh}>
-                <Text style={styles.retryBtnText}>Search Again</Text>
-              </TouchableOpacity>
-            </View>
           )}
         />
       )}
@@ -254,267 +387,74 @@ const FindPartners = () => {
   );
 };
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const S = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.surface,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 54,
+    backgroundColor: C.bg,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 10 : 50,
   },
-
-  // Header
-  header: {
+  utilityBar: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 14,
+    marginBottom: 10,
   },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: COLORS.text,
-    letterSpacing: 0.2,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    marginTop: 2,
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#64748B", 
+    letterSpacing: 0.5,
+    textTransform: "uppercase", 
   },
   refreshBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(200,57,43,0.1)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: C.white,
     justifyContent: "center",
     alignItems: "center",
-  },
-
-  // Stats Banner
-  statsBanner: {
-    flexDirection: "row",
-    marginHorizontal: 20,
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 16,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingVertical: 14,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: COLORS.dark,
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    borderColor: C.border,
   },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: COLORS.primary,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    fontWeight: "500",
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: 4,
-  },
-
-  // Filters
-  filterRow: {
+  header: {
     flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 14,
+    marginBottom: 20,
   },
-  filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: COLORS.surfaceAlt,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  filterPillActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  filterPillText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.textMuted,
-  },
-  filterPillTextActive: {
-    color: COLORS.white,
-  },
-
-  // List
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-    gap: 12,
-  },
-
-  // Card
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.cardBg,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    elevation: 3,
-    shadowColor: COLORS.dark,
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    gap: 12,
-  },
-  avatarWrapper: {
-    position: "relative",
-  },
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
-  },
-  avatarPlaceholder: {
-    backgroundColor: COLORS.surfaceAlt,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  avatarInitial: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: COLORS.primary,
-  },
-  onlineDot: {
-    position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.online,
-    borderWidth: 2,
-    borderColor: COLORS.cardBg,
-  },
-  cardInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  cardName: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: COLORS.text,
-  },
-  cardMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  cardMetaText: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    fontWeight: "500",
-  },
-  tagRow: {
-    flexDirection: "row",
-    gap: 6,
-    marginTop: 2,
-  },
-  tag: {
-    backgroundColor: "rgba(200,57,43,0.08)",
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  tagText: {
-    fontSize: 10,
-    color: COLORS.primary,
-    fontWeight: "600",
-  },
-  connectBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 3,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-  },
-
-  // Loading
-  loadingState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    fontWeight: "500",
-  },
-
-  // Empty
-  emptyState: {
-    alignItems: "center",
-    paddingTop: 60,
-    paddingHorizontal: 32,
-    gap: 8,
-  },
-  emptyIcon: {
-    width: 68,
-    height: 68,
-    borderRadius: 20,
-    backgroundColor: "rgba(200,57,43,0.08)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: COLORS.text,
-  },
-  emptySubtitle: {
+  headerTitle: {
     fontSize: 13,
-    color: COLORS.textMuted,
-    textAlign: "center",
-    lineHeight: 19,
-  },
-  retryBtn: {
-    marginTop: 14,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 12,
-    elevation: 3,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  retryBtnText: {
-    color: COLORS.white,
     fontWeight: "700",
+    color: C.textMuted,
+    letterSpacing: 0.5,
+  },
+  badge: {
+    backgroundColor: C.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  badgeText: {
+    color: C.primaryText,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  list: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  loadingWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+  },
+  loadingLabel: {
     fontSize: 14,
+    color: C.textMuted,
+    fontWeight: "500",
   },
 });
 

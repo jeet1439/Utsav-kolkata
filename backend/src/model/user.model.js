@@ -27,8 +27,21 @@ const userSchema = new mongoose.Schema({
     featuredImages: {
         type: [String], 
         default: []
+    },
+    location: {
+    type: {
+      type: String,
+      enum: ["Point"],
+      default: "Point"
+    },
+    coordinates: {
+      type: [Number], 
+      default: [0, 0]
     }
+  },
+  lastActive: Date,
 });
+userSchema.index({ location: "2dsphere" });
 
 const User = mongoose.model("User", userSchema);
 

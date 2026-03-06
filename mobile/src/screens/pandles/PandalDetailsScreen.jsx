@@ -29,7 +29,7 @@ const HERO_HEIGHT = 300;
 
 // ─── Color Palette (matches Home.js) ─────────────────────────────────────────
 const COLORS = {
-  primary: "#C8392B",
+  primary: "#ff8800",
   primaryLight: "#E8594A",
   gold: "#D4A843",
   goldLight: "#F0C85A",
@@ -629,7 +629,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: COLORS.primary,
     borderRadius: 14,
-    padding: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     gap: 12,
     elevation: 5,
     shadowColor: COLORS.primary,

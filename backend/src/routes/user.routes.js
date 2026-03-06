@@ -3,7 +3,7 @@ import cloudinary from "../lib/cloudConfig.js";
 import User from "../model/user.model.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import multer from "multer";
-
+import redis from '../redis/redis.js'
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -45,7 +45,6 @@ router.post(
   }
 );
 
-// ─── POST /featured-image ─────────────────────────────────────────────────────
 router.post(
   "/featured-image",
   authMiddleware,
@@ -112,7 +111,6 @@ router.get("/getuser/:id", async (req, res) => {
   }
 });
 
-
 router.get("/me", authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -127,5 +125,64 @@ router.get("/me", authMiddleware, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+
+router.post("/update-location", async (req, res) => {
+  try {
+    const { userId, latitude, longitude } = req.body;
+
+    await User.findByIdAndUpdate(userId, {
+      location: {
+        type: "Point",
+        coordinates: [longitude, latitude],
+      },
+      lastActive: new Date(),
+    });
+
+    res.json({ message: "Location updated" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/nearby-online", async (req, res) => {
+  try {
+    const { userId, latitude, longitude } = req.body;
+
+    const nearbyUsers = await User.find({
+      _id: { $ne: userId },
+      location: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [longitude, latitude],
+          },
+          $maxDistance: 5000,
+        },
+      },
+    }).limit(50);
+
+    const usersWithOnline = await Promise.all(
+      nearbyUsers.map(async (user) => {
+        const isOnline = await redis.get(`online:${user._id}`);
+
+        return {
+          _id: user._id,
+          name: user.username,
+          avatar: user.profileImage[0],
+          isOnline: true,
+          bio: user.bio,
+          distance: 1, // optional if not calculating
+        };
+      })
+    );
+
+    res.json(usersWithOnline);
+  } catch (error) {
+    console.error("Nearby error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 export default router;

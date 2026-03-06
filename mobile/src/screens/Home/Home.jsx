@@ -24,7 +24,7 @@ const CARD_WIDTH = (width - 48) / 2;
 
 // ─── Color Palette ────────────────────────────────────────────────────────────
 const COLORS = {
-  primary: '#C8392B',       // deep sindoor red
+  primary: '#ff8800',     
   primaryLight: '#E8594A',
   gold: '#D4A843',
   goldLight: '#F0C85A',
@@ -85,7 +85,7 @@ const PandalCard = ({ item, index, onPress }) => {
 const Home = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [location, setLocation] = useState(null);
-  const [nearestPandle, setNearestPandle] = useState(null);
+  const [nearestPandle, setNearestPandle] = useState([]);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
