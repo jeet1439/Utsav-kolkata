@@ -34,18 +34,33 @@ const io = new Server(server, {
   cors: { origin: "*" },
 });
 
+
 io.on("connection", (socket) => {
   console.log("User connected");
 
+  let currentUserId = null;
+
   socket.on("userOnline", async (userId) => {
+    currentUserId = userId;
+
     await redis.set(`online:${userId}`, "true", "EX", 300);
+
+    console.log(`User ${userId} online`);
   });
 
-  socket.on("disconnect", () => {
-    console.log("User disconnected");
+  socket.on("userOffline", async (userId) => {
+    await redis.del(`online:${userId}`);
+
+    console.log(`User ${userId} offline`);
+  });
+
+  socket.on("disconnect", async () => {
+    if (currentUserId) {
+      await redis.del(`online:${currentUserId}`);
+      console.log("User disconnected:", currentUserId);
+    }
   });
 });
-
 
 
 
@@ -54,6 +69,6 @@ app.get('/', (req, res) => {
 });
 
 
-app.listen(3000, () => {
+server.listen(3000, () => {
   console.log('Server running on port 3000');
 });

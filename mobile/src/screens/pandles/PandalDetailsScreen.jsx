@@ -29,18 +29,18 @@ const HERO_HEIGHT = 300;
 
 // ─── Color Palette (matches Home.js) ─────────────────────────────────────────
 const COLORS = {
-  primary: "#ff8800",
-  primaryLight: "#E8594A",
-  gold: "#D4A843",
-  goldLight: "#F0C85A",
-  dark: "#1A1210",
-  surface: "#FDFAF7",
-  surfaceAlt: "#F5EFE8",
-  text: "#2C1810",
-  textMuted: "#9E7B6B",
+  primary: "#8B3DFF",
+  primaryLight: "#F3E8FF",
+  gold: "#9B6FD4",
+  goldLight: "#C4A0F0",
+  dark: "#12102A",
+  surface: "#FAF8FF",
+  surfaceAlt: "#F0EBFF",
+  text: "#1E1035",
+  textMuted: "#7E6A9E",
   white: "#FFFFFF",
-  cardBg: "#FFFCF9",
-  border: "rgba(212,168,67,0.15)",
+  cardBg: "#FDFBFF",
+  border: "rgba(139,61,255,0.15)",
 };
 
 // ─── Info Chip ─────────────────────────────────────────────────────────────────
@@ -325,7 +325,11 @@ const PandalDetailsScreen = ({ route, navigation }) => {
       </Animated.ScrollView>
 
       {/* ── Share Memory Modal (Bottom Sheet style) ── */}
-      <Modal visible={isModalVisible} transparent animationType="none" onRequestClose={closeModal}>
+      <Modal visible={isModalVisible} 
+      statusBarTranslucent={true}
+      transparent
+       animationType="none" 
+       onRequestClose={closeModal}>
         <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={closeModal} />
         <Animated.View style={[styles.modalSheet, { transform: [{ translateY: modalSlide }] }]}>
           {/* Handle */}

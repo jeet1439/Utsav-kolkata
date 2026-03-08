@@ -126,6 +126,100 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
+router.post("/follow/:id", authMiddleware, async (req, res) => {
+  try {
+
+    const userId = req.user._id;
+    const targetUserId = req.params.id;
+
+    if (userId === targetUserId) {
+      return res.status(400).json({ message: "You cannot follow yourself" });
+    }
+
+    const user = await User.findById(userId);
+    const targetUser = await User.findById(targetUserId);
+
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.followings.includes(targetUserId)) {
+      return res.status(400).json({ message: "Already following this user" });
+    }
+
+    user.followings.push(targetUserId);
+    targetUser.followers.push(userId);
+
+    await user.save();
+    await targetUser.save();
+
+    res.json({ success: true, message: "User followed" });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/unfollow/:id", authMiddleware, async (req, res) => {
+  try {
+
+    const userId = req.user._id;
+    const targetUserId = req.params.id;
+
+    await User.findByIdAndUpdate(userId, {
+      $pull: { followings: targetUserId }
+    });
+
+    await User.findByIdAndUpdate(targetUserId, {
+      $pull: { followers: userId }
+    });
+
+    res.json({ success: true, message: "User unfollowed" });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/followers/:id", async (req, res) => {
+  try {
+
+    const user = await User.findById(req.params.id)
+      .populate("followers", "username profileImage bio");
+
+    res.json(user.followers);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/following/:id", async (req, res) => {
+  try {
+
+    const user = await User.findById(req.params.id)
+      .populate("following", "username profileImage bio");
+
+    res.json(user.followings);
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/is-following/:id", authMiddleware, async (req, res) => {
+  try {
+
+    const user = await User.findById(req.user._id);
+
+    const isFollowing = user.followings.includes(req.params.id);
+
+    res.json({ isFollowing });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 router.post("/update-location", async (req, res) => {
   try {
@@ -144,7 +238,6 @@ router.post("/update-location", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 router.post("/nearby-online", async (req, res) => {
   try {
     const { userId, latitude, longitude } = req.body;
@@ -165,14 +258,14 @@ router.post("/nearby-online", async (req, res) => {
     const usersWithOnline = await Promise.all(
       nearbyUsers.map(async (user) => {
         const isOnline = await redis.get(`online:${user._id}`);
-
+        console.log(isOnline)
         return {
           _id: user._id,
           name: user.username,
           avatar: user.profileImage[0],
-          isOnline: true,
+          isOnline: isOnline === "true",
           bio: user.bio,
-          distance: 1, // optional if not calculating
+          distance: 1, 
         };
       })
     );

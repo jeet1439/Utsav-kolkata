@@ -10,13 +10,13 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const COLORS = {
-  primary: '#ff8800',
-  gold: '#D4A843',
-  surface: '#FDFAF7',
-  surfaceAlt: '#F5EFE8',
-  text: '#2C1810',
-  textMuted: '#9E7B6B',
-  white: '#FFFFFF',
+  primary: "#8B3DFF",
+  gold: "#9B6FD4",
+  surface: "#FAF8FF",
+  surfaceAlt: "#F0EBFF",
+  text: "#1E1035",
+  textMuted: "#7E6A9E",
+  white: "#FFFFFF",
 };
 
 const LoadingDot = ({ index }) => {

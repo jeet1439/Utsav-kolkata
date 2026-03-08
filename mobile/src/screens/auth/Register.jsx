@@ -18,20 +18,20 @@ import { useUserStore } from '../../store/userStore.js';
 import CustomModal from '../../components/CustomModal.jsx';
 
 const COLORS = {
-  primary: '#ff8800',
-  primaryLight: '#E8594A',
-  gold: '#D4A843',
-  goldLight: '#F0C85A',
-  dark: '#1A1210',
-  surface: '#FDFAF7',
-  surfaceAlt: '#F5EFE8',
-  text: '#2C1810',
-  textMuted: '#9E7B6B',
-  white: '#FFFFFF',
-  cardBg: '#FFFCF9',
-  shadow: 'rgba(200, 57, 43, 0.15)',
-  error: '#D94040',
-  errorBg: '#FFF0F0',
+  primary: "#8B3DFF",
+  primaryLight: "#F3E8FF",
+  gold: "#9B6FD4",
+  goldLight: "#C4A0F0",
+  dark: "#12102A",
+  surface: "#FAF8FF",
+  surfaceAlt: "#F0EBFF",
+  text: "#1E1035",
+  textMuted: "#7E6A9E",
+  white: "#FFFFFF",
+  cardBg: "#FDFBFF",
+  shadow: "rgba(139, 61, 255, 0.15)",
+  error: "#C62FC6",
+  errorBg: "#FDF0FF",
 };
 
 const StepIndicator = ({ current, total }) => (
@@ -267,7 +267,7 @@ const Register = ({ navigation }) => {
 
               <InputField
                 label="Username"
-                placeholder="your_puja_name"
+                placeholder="your name"
                 value={username}
                 onChangeText={(v) => { setUsername(v); setErrors((e) => ({ ...e, username: '' })); }}
                 autoCapitalize="none"

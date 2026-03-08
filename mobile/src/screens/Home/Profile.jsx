@@ -39,7 +39,7 @@ const C = {
   textMuted: '#B2B2B2',
   border: '#EBEBEB',
   borderLight: '#F0F0F0',
-  accent: '#0095F6',
+  accent: '#8B3DFF',
   accentRed: '#E53E3E',
   white: '#FFFFFF',
   black: '#000000',
@@ -268,8 +268,8 @@ const Profile = () => {
 
           <View style={styles.statsRow}>
             <StatBox label="Posts" value={user?.featuredImages?.length ?? 0} />
-            <StatBox label="Followers" value="0" />
-            <StatBox label="Following" value="0" />
+            <StatBox label="Followers" value={user?.followers?.length} />
+            <StatBox label="Following" value={user?.following?.length} />
           </View>
         </View>
 

@@ -27,10 +27,10 @@ const C = {
   bg: "#F5F6FA",
   white: "#FFFFFF",
   card: "#FFFFFF",
-  primary: "#8B3DFF", 
+  primary: "#8B3DFF",
   primaryLight: "#F3E8FF",
   primaryText: "#9333EA",
-  avatarBg: "#FCE7D9", 
+  avatarBg: "#FCE7D9",
   online: "#10B981",
   offline: "#CBD5E1",
   textDark: "#0F172A",
@@ -84,7 +84,7 @@ const togS = StyleSheet.create({
   label: { fontSize: 12, fontWeight: "600" },
 });
 
-const PartnerCard = ({ item, index, onConnect }) => {
+const PartnerCard = ({ item, index, onConnect, navigation }) => {
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
   const bio = item.bio || fallbackBios[index % fallbackBios.length];
@@ -98,13 +98,17 @@ const PartnerCard = ({ item, index, onConnect }) => {
 
   return (
     <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
+    <TouchableOpacity
+      activeOpacity={0.95}
+      onPress={() => navigation.navigate("PersonProfile", { userId: item._id })}
+    >
       <View style={cardS.card}>
         <View style={cardS.topRow}>
           <View style={cardS.avatarWrap}>
             {item.avatar ? (
-              <Image 
-              resizeMode="cover"
-              source={{ uri: item.avatar }} style={cardS.avatar} />
+              <Image
+                resizeMode="cover"
+                source={{ uri: item.avatar }} style={cardS.avatar} />
             ) : (
               <View style={[cardS.avatar, cardS.avatarFallback]}>
                 <Text style={cardS.initial}>{item.name?.charAt(0).toUpperCase()}</Text>
@@ -129,16 +133,17 @@ const PartnerCard = ({ item, index, onConnect }) => {
             <Ionicons name="chatbox-ellipses-outline" size={18} color={C.white} />
             <Text style={cardS.msgText}>Message</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={cardS.addBtn} 
-            activeOpacity={0.7} 
+
+          <TouchableOpacity
+            style={cardS.addBtn}
+            activeOpacity={0.7}
             onPress={() => onConnect(item)}
           >
             <Ionicons name="person-add-outline" size={18} color="#334155" />
           </TouchableOpacity>
         </View>
       </View>
+      </TouchableOpacity>
     </Animated.View>
   );
 };
@@ -149,12 +154,6 @@ const cardS = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    // Very soft shadow for the clean aesthetic
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
   },
   topRow: {
     flexDirection: "row",
@@ -253,17 +252,52 @@ const cardS = StyleSheet.create({
 });
 
 // ── Main Screen ────────────────────────────────────────────────────
-const FindPartners = () => {
+const FindPartners = ( { navigation }) => {
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [location, setLocation] = useState(null);
   const [isOnline, setIsOnline] = useState(true);
 
   const spinVal = useRef(new Animated.Value(0)).current;
+  const locationIntervalRef = useRef(null);
+
 
   useEffect(() => {
     init();
   }, []);
+
+  useEffect(() => {
+    if (isOnline) {
+      // Update location immediately when coming online
+      if (location) updateLocation(location);
+
+      locationIntervalRef.current = setInterval(async () => {
+        Geolocation.getCurrentPosition(
+          async (position) => {
+            const coords = position.coords;
+            setLocation(coords);
+            await updateLocation(coords);
+            // console.log("loation refreshed")
+          },
+          (error) => console.log("Interval location error:", error.message),
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+        );
+      }, 3 * 60 * 1000);
+    } else {
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+        locationIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+        locationIntervalRef.current = null;
+      }
+    };
+  }, [isOnline]);
+
 
   const init = async () => {
     const userId = await AsyncStorage.getItem("userId");
@@ -311,7 +345,7 @@ const FindPartners = () => {
       const res = await axios.post(`${SERVER_URL}/api/user/nearby-online`, {
         userId, latitude: coords.latitude, longitude: coords.longitude,
       });
-      // Mocking extra data to ensure UI looks populated for demo purposes 
+      // demo purposes 
       setPartners(res.data.length ? res.data : [
         { _id: '1', name: 'Sarah Jenkins', distance: 0.5, isOnline: true },
         { _id: '2', name: 'Marcus Chen', distance: 1.2, isOnline: false },
@@ -328,11 +362,23 @@ const FindPartners = () => {
     fetchPartners(location);
   };
 
+
   const handleToggleOnline = async () => {
-    const next = !isOnline;
-    setIsOnline(next);
+
     const userId = await AsyncStorage.getItem("userId");
-    if (userId) socket.emit(next ? "userOnline" : "userOffline", userId);
+
+    if (!userId) return;
+
+    const next = !isOnline;
+
+    setIsOnline(next);
+
+    if (next) {
+      socket.emit("userOnline", userId);
+    } else {
+      socket.emit("userOffline", userId);
+    }
+
   };
 
   const handleConnect = (user) => {
@@ -344,10 +390,7 @@ const FindPartners = () => {
   return (
     <View style={S.root}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
-
-      {/* Subtle Top Utility Bar */}
       <View style={S.utilityBar}>
-        {/* <OnlineToggle isOnline={isOnline} onToggle={handleToggleOnline} /> */}
         <Text style={S.sectionHeader}>Nearby People</Text>
         <TouchableOpacity style={S.refreshBtn} onPress={handleRefresh}>
           <Animated.View style={{ transform: [{ rotate: spin }] }}>
@@ -355,14 +398,12 @@ const FindPartners = () => {
           </Animated.View>
         </TouchableOpacity>
       </View>
-
-      {/* Redesigned Clean Header */}
       <View style={S.header}>
         <Text style={S.headerTitle}>
           DISCOVER {partners.length >= 50 ? "50+" : partners.length} PEOPLE
         </Text>
         <View style={S.badge}>
-        <OnlineToggle isOnline={isOnline} onToggle={handleToggleOnline} />
+          <OnlineToggle isOnline={isOnline} onToggle={handleToggleOnline} />
         </View>
       </View>
 
@@ -379,7 +420,7 @@ const FindPartners = () => {
           contentContainerStyle={S.list}
           showsVerticalScrollIndicator={false}
           renderItem={({ item, index }) => (
-            <PartnerCard item={item} index={index} onConnect={handleConnect} />
+            <PartnerCard item={item} index={index} onConnect={handleConnect} navigation={navigation} />
           )}
         />
       )}
@@ -403,9 +444,9 @@ const S = StyleSheet.create({
   sectionHeader: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#64748B", 
+    color: "#64748B",
     letterSpacing: 0.5,
-    textTransform: "uppercase", 
+    textTransform: "uppercase",
   },
   refreshBtn: {
     width: 36,

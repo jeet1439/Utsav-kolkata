@@ -42,7 +42,9 @@ router.post("/signup", async (req, res) => {
         password: hashedPassword,
         profileImage: [dicebearUrl],
         bio: "",            
-        featuredImages: []
+        featuredImages: [], 
+        followers: [],
+        following: [],
     });
 
     await user.save();
@@ -56,7 +58,9 @@ router.post("/signup", async (req, res) => {
         email: user.email,
         profileImage: user.profileImage,
         bio: user.bio,
-        featuredImages: user.featuredImages
+        featuredImages: user.featuredImages,
+        followers: user.followers,
+        following: user.following
         },
     });
 
@@ -93,7 +97,9 @@ router.post("/login", async (req, res) => {
         email: user.email,
         profileImage: user.profileImage,
         bio: user.bio,
-        featuredImages: user.featuredImages
+        featuredImages: user.featuredImages ,
+        followers: user.followers,
+        following: user.following
         },
     });
 
