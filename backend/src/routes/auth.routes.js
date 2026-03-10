@@ -99,7 +99,7 @@ router.post("/login", async (req, res) => {
         bio: user.bio,
         featuredImages: user.featuredImages ,
         followers: user.followers,
-        following: user.following
+        following: user.followings,
         },
     });
 

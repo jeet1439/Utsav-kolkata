@@ -116,7 +116,7 @@ const ImageTile = ({ uri, onLongPress }) => {
   );
 };
 
-const Profile = () => {
+const Profile = ({navigation}) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('grid');
@@ -252,7 +252,7 @@ const Profile = () => {
             <TouchableOpacity onPress={() => setFeaturedModal(true)} style={styles.iconBtn}>
               <Ionicons name="add-outline" size={26} color={C.text} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => console.log('menu')} style={styles.iconBtn}>
+            <TouchableOpacity onPress={() => navigation.navigate('ChatsScreen')} style={styles.iconBtn}>
               <Image source={chatIcon} style={{ width: 22, height: 22, tintColor: C.text }} />
             </TouchableOpacity>
           </View>
@@ -269,7 +269,7 @@ const Profile = () => {
           <View style={styles.statsRow}>
             <StatBox label="Posts" value={user?.featuredImages?.length ?? 0} />
             <StatBox label="Followers" value={user?.followers?.length} />
-            <StatBox label="Following" value={user?.following?.length} />
+            <StatBox label="Following" value={user?.followings?.length} />
           </View>
         </View>
 

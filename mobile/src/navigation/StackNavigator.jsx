@@ -6,6 +6,9 @@ import Login from "../screens/auth/Login.jsx";
 import TabNavigator from "./TabNavigator.jsx";
 import PandalDetailsScreen from "../screens/pandles/PandalDetailsScreen.jsx";
 import PersonProfile from "../screens/profile/PersonProfile.jsx";
+import ChatRoom from "../screens/chat/ChatRoom.jsx";
+import ChatsScreen from "../screens/chat/ChatsScreen.jsx";
+
 
 const Stack = createNativeStackNavigator();
 
@@ -20,6 +23,9 @@ export default function StackNavigator() {
 
       <Stack.Screen name = "PandalDetails" component={PandalDetailsScreen} options={{ headerShown: false }} />
       <Stack.Screen name = "PersonProfile" component={PersonProfile} options={{ headerShown: false }} />
+
+      <Stack.Screen name = "ChatRoom" component={ChatRoom} options={{ headerShown: false }} />
+      <Stack.Screen name = "ChatsScreen" component={ChatsScreen} options={{ headerShown: false }} />
     </Stack.Navigator> 
   );
 }
