@@ -7,7 +7,9 @@ const chatRoomSchema = new mongoose.Schema({
     ref: "User"
     }
   ],
-  createdAt: { type: Date, default: Date.now }
+  lastMessage: { type: String, default: "" },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
 
 export default mongoose.model("ChatRoom", chatRoomSchema);

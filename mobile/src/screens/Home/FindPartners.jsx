@@ -17,11 +17,8 @@ import {
 import Ionicons from "react-native-vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Geolocation from "react-native-geolocation-service";
-import io from "socket.io-client";
 import axios from "axios";
-
-const SERVER_URL = "http://192.168.0.100:3000";
-const socket = io(SERVER_URL, { transports: ["websocket"] });
+import socket, { SERVER_URL } from '../../store/socketService';
 
 const C = {
   bg: "#F5F6FA",
@@ -84,7 +81,7 @@ const togS = StyleSheet.create({
   label: { fontSize: 12, fontWeight: "600" },
 });
 
-const PartnerCard = ({ item, index, onConnect, navigation }) => {
+const PartnerCard = ({ item, index, onConnect, onMessage, navigation }) => {
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
   const bio = item.bio || fallbackBios[index % fallbackBios.length];
@@ -129,7 +126,7 @@ const PartnerCard = ({ item, index, onConnect, navigation }) => {
 
         {/* Bottom Section: Actions */}
         <View style={cardS.actionRow}>
-          <TouchableOpacity style={cardS.msgBtn} activeOpacity={0.8}>
+          <TouchableOpacity style={cardS.msgBtn} activeOpacity={0.8} onPress={() => onMessage(item)}>
             <Ionicons name="chatbox-ellipses-outline" size={18} color={C.white} />
             <Text style={cardS.msgText}>Message</Text>
           </TouchableOpacity>
@@ -385,6 +382,25 @@ const FindPartners = ( { navigation }) => {
     Alert.alert("Request Sent", `Connection request sent to ${user.name}`, [{ text: "Great!" }]);
   };
 
+  const handleMessage = async (user) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const res = await axios.post(`${SERVER_URL}/api/chat/room`, 
+        { otherUserId: user._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      navigation.navigate('ChatRoom', {
+        chatRoomId: res.data._id,
+        chatName: user.name,
+        otherUserId: user._id,
+        otherAvatar: user.avatar,
+      });
+    } catch (error) {
+      console.log('Error creating chat room:', error);
+      Alert.alert('Error', 'Could not open chat. Please try again.');
+    }
+  };
+
   const spin = spinVal.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
@@ -420,7 +436,7 @@ const FindPartners = ( { navigation }) => {
           contentContainerStyle={S.list}
           showsVerticalScrollIndicator={false}
           renderItem={({ item, index }) => (
-            <PartnerCard item={item} index={index} onConnect={handleConnect} navigation={navigation} />
+            <PartnerCard item={item} index={index} onConnect={handleConnect} onMessage={handleMessage} navigation={navigation} />
           )}
         />
       )}

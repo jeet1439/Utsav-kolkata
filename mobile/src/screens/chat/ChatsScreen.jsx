@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -7,183 +7,196 @@ import {
   StyleSheet, 
   SafeAreaView,
   Image,
-  TextInput
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import socket, { SERVER_URL } from '../../store/socketService';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const C = {
   bg: "#FFFFFF", 
-  primary: "#000000", 
+  primary: "#8B3DFF",
+  primaryLight: "#F3E8FF",
   primaryText: "#000000",
   textDark: "#111827",
   textMuted: "#6B7280",
   textLight: "#9CA3AF",
   searchBg: "#F3F4F6",
   border: "#F3F4F6",
+  online: "#10B981",
 };
-
-const DUMMY_CHATS = [
-  { 
-    id: '1', 
-    name: 'Aarav Sharma', 
-    lastMessage: 'Let mee free!', 
-    time: '10:30 AM', 
-    unread: 2,
-    avatar: 'https://i.pravatar.cc/150?u=aarav' 
-  },
-  { 
-    id: '2', 
-    name: 'Product Team', 
-    lastMessage: 'The new mockups look great.', 
-    time: '09:15 AM', 
-    unread: 0,
-    avatar: 'https://i.pravatar.cc/150?u=product' 
-  },
-  { 
-    id: '3', 
-    name: 'Ishaan Patel', 
-    lastMessage: 'See you tomorrow 👋', 
-    time: 'Yesterday', 
-    unread: 0, 
-    avatar: 'https://i.pravatar.cc/150?u=ishaan' 
-  },
-  { 
-    id: '4', 
-    name: 'Ananya Iyer', 
-    lastMessage: 'Can you send over the files?', 
-    time: 'Tuesday', 
-    unread: 1, 
-    avatar: 'https://i.pravatar.cc/150?u=ananya' 
-  },
-  { 
-    id: '5', 
-    name: 'Vihaan Gupta', 
-    lastMessage: 'The API is finally working 🚀', 
-    time: '11:45 AM', 
-    unread: 5, 
-    avatar: 'https://i.pravatar.cc/150?u=vihaan' 
-  },
-  { 
-    id: '6', 
-    name: 'Saanvi Reddy', 
-    lastMessage: 'Are we still meeting at 5?', 
-    time: '08:20 AM', 
-    unread: 0, 
-    avatar: 'https://i.pravatar.cc/150?u=saanvi' 
-  },
-  { 
-    id: '7', 
-    name: 'Arjun Mehra', 
-    lastMessage: 'Check out this repo link.', 
-    time: 'Yesterday', 
-    unread: 0, 
-    avatar: 'https://i.pravatar.cc/150?u=arjun' 
-  },
-  { 
-    id: '8', 
-    name: 'Diya Malhotra', 
-    lastMessage: 'Happy Birthday!', 
-    time: 'Monday', 
-    unread: 3, 
-    avatar: 'https://i.pravatar.cc/150?u=diya' 
-  },
-  { 
-    id: '9', 
-    name: 'Kabir Singh', 
-    lastMessage: 'I updated the Redis config.', 
-    time: '2:30 PM', 
-    unread: 0, 
-    avatar: 'https://i.pravatar.cc/150?u=kabir' 
-  },
-  { 
-    id: '10', 
-    name: 'Myra Kulkarni', 
-    lastMessage: 'Can we hop on a quick call?', 
-    time: '1:15 PM', 
-    unread: 1, 
-    avatar: 'https://i.pravatar.cc/150?u=myra' 
-  },
-  { 
-    id: '11', 
-    name: 'Rohan Varma', 
-    lastMessage: 'The production build is ready.', 
-    time: 'Yesterday', 
-    unread: 0, 
-    avatar: 'https://i.pravatar.cc/150?u=rohan' 
-  },
-  { 
-    id: '12', 
-    name: 'Aditi Joshi', 
-    lastMessage: 'Let’s grab coffee soon.', 
-    time: 'Sunday', 
-    unread: 0, 
-    avatar: 'https://i.pravatar.cc/150?u=aditi' 
-  },
-];
 
 const ChatsScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.chatRow}
-      activeOpacity={0.6}
-      onPress={() => navigation?.navigate('ChatRoom', { chatName: item.name })}
-    >
-      {/* Avatar Image */}
-      <Image 
-        source={{ uri: item.avatar }} 
-        style={styles.avatar} 
-      />
+  const fetchRooms = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
+      setCurrentUserId(userId);
 
-      {/* Chat Details */}
-      <View style={styles.chatDetails}>
-        <View style={styles.chatHeader}>
-          <Text style={styles.chatName}>{item.name}</Text>
-          <Text style={styles.chatTime}>{item.time}</Text>
-        </View>
-        <View style={styles.chatFooter}>
-          <Text 
-            style={[styles.lastMessage, item.unread > 0 && styles.lastMessageUnread]} 
-            numberOfLines={1}
-          >
-            {item.lastMessage}
+      const res = await axios.get(`${SERVER_URL}/api/chat/rooms`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRooms(res.data);
+    } catch (error) {
+      console.log('Error fetching rooms:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms]);
+
+  // Listen for new messages to update the rooms list in real-time
+  useEffect(() => {
+    const handleNewMessage = (message) => {
+      setRooms(prev => {
+        const updated = prev.map(room => {
+          if (room._id === message.chatRoomId) {
+            return { ...room, lastMessage: message.text, updatedAt: message.createdAt };
+          }
+          return room;
+        });
+        // Sort by updatedAt descending
+        return updated.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      });
+    };
+
+    socket.on('newMessage', handleNewMessage);
+    return () => socket.off('newMessage', handleNewMessage);
+  }, []);
+
+  // Re-fetch rooms when screen gains focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchRooms();
+    });
+    return unsubscribe;
+  }, [navigation, fetchRooms]);
+
+  const getOtherParticipant = (room) => {
+    if (!currentUserId || !room.participants) return {};
+    return room.participants.find(p => p._id !== currentUserId) || room.participants[0] || {};
+  };
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: 'long' });
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  const filteredRooms = rooms.filter(room => {
+    if (!searchQuery.trim()) return true;
+    const other = getOtherParticipant(room);
+    return other.username?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const renderItem = ({ item }) => {
+    const other = getOtherParticipant(item);
+    const avatar = other.profileImage?.[0];
+
+    return (
+      <TouchableOpacity 
+        style={styles.chatRow}
+        activeOpacity={0.6}
+        onPress={() => navigation.navigate('ChatRoom', { 
+          chatRoomId: item._id,
+          chatName: other.username || 'Chat',
+          otherUserId: other._id,
+          otherAvatar: avatar,
+        })}
+      >
+        {avatar ? (
+          <Image source={{ uri: avatar }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]}>
+            <Text style={styles.avatarInitial}>
+              {other.username?.charAt(0).toUpperCase() || '?'}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.chatDetails}>
+          <View style={styles.chatHeader}>
+            <Text style={styles.chatName} numberOfLines={1}>
+              {other.username || 'User'}
+            </Text>
+            <Text style={styles.chatTime}>{formatTime(item.updatedAt)}</Text>
+          </View>
+          <Text style={styles.lastMessage} numberOfLines={1}>
+            {item.lastMessage || 'Tap to start chatting'}
           </Text>
-          {item.unread > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>{item.unread}</Text>
-            </View>
-          )}
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Chats</Text>
+        </View>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={C.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Utsav kolkata</Text>
+        <Text style={styles.headerTitle}>Chats</Text>
       </View>
 
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
+        <Ionicons name="search-outline" size={18} color={C.textLight} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search chats..."
+          placeholder="Search conversations..."
           placeholderTextColor={C.textLight}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
       </View>
 
-      {/* Chat List */}
-      <FlatList
-        data={DUMMY_CHATS}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      />
+      {filteredRooms.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <Ionicons name="chatbubbles-outline" size={60} color={C.border} />
+          <Text style={styles.emptyTitle}>No conversations yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Find people nearby and start chatting!
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredRooms}
+          keyExtractor={item => item._id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -200,41 +213,57 @@ const styles = StyleSheet.create({
     backgroundColor: C.bg,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
     color: C.textDark,
   },
   searchContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 15,
+    backgroundColor: C.searchBg,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   searchInput: {
-    backgroundColor: C.searchBg,
-    borderRadius: 12, // Pill-like soft edges
-    paddingHorizontal: 16,
+    flex: 1,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: 15,
     color: C.textDark,
   },
   listContainer: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 5,
   },
   chatRow: {
     flexDirection: 'row',
-    paddingVertical: 14, // Spaced out instead of boxed in cards
+    paddingVertical: 14,
     alignItems: 'center',
   },
   avatar: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: C.border, // Fallback color while loading
+    backgroundColor: C.border,
     marginRight: 16,
+  },
+  avatarFallback: {
+    backgroundColor: '#FDBA74',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitial: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   chatDetails: {
     flex: 1,
-    borderBottomWidth: 1, // Optional: subtle separator line
+    borderBottomWidth: 1,
     borderBottomColor: C.border,
     paddingBottom: 14,
   },
@@ -248,39 +277,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: C.textDark,
+    flex: 1,
   },
   chatTime: {
     fontSize: 13,
     color: C.textLight,
-  },
-  chatFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginLeft: 10,
   },
   lastMessage: {
-    fontSize: 15,
+    fontSize: 14,
     color: C.textMuted,
+  },
+  loadingWrap: {
     flex: 1,
-    paddingRight: 15,
-  },
-  lastMessageUnread: {
-    color: C.textDark,
-    fontWeight: '500', // Make the text pop slightly if unread
-  },
-  unreadBadge: {
-    backgroundColor: C.primary,
-    borderRadius: 12,
-    minWidth: 22,
-    height: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 6,
   },
-  unreadText: {
-    color: C.bg,
-    fontSize: 11,
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    gap: 10,
+  },
+  emptyTitle: {
+    fontSize: 18,
     fontWeight: '700',
+    color: C.textDark,
+    marginTop: 10,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: C.textMuted,
+    textAlign: 'center',
   },
 });
 

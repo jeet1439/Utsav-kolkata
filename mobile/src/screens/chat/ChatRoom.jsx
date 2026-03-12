@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -8,52 +8,144 @@ import {
   StyleSheet, 
   SafeAreaView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import socket, { SERVER_URL } from '../../store/socketService';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const C = {
   bg: "#F5F6FA",
   white: "#FFFFFF",
-  card: "#FFFFFF",
   primary: "#8B3DFF",
   primaryLight: "#F3E8FF",
   primaryText: "#9333EA",
-  avatarBg: "#FCE7D9",
   textDark: "#0F172A",
   textMuted: "#64748B",
   textLight: "#94A3B8",
-  btnSecondary: "#F1F5F9",
   border: "#F1F5F9",
 };
 
-const INITIAL_MESSAGES = [
-  { id: '1', text: 'Hey! Are we still on for the meeting?', sender: 'other', time: '10:28 AM' },
-  { id: '2', text: 'Yes, definitely. I just need 5 more minutes.', sender: 'me', time: '10:29 AM' },
-  { id: '3', text: 'Perfect. Let me know when you are free!', sender: 'other', time: '10:30 AM' },
-];
-
 const ChatRoom = ({ route, navigation }) => {
-  // Extracting the chat name passed from ChatsScreen
-  const chatName = route?.params?.chatName || 'Chat';
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const { chatRoomId, chatName, otherAvatar } = route?.params || {};
+  const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const flatListRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
-  const sendMessage = () => {
-    if (inputText.trim() === '') return;
-    
-    const newMessage = {
-      id: Date.now().toString(),
-      text: inputText,
-      sender: 'me',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  // Load messages and join socket room
+  useEffect(() => {
+    const init = async () => {
+      const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
+      setCurrentUserId(userId);
+
+      try {
+        const res = await axios.get(`${SERVER_URL}/api/chat/messages/${chatRoomId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setMessages(res.data);
+      } catch (error) {
+        console.log('Error fetching messages:', error);
+      } finally {
+        setLoading(false);
+      }
+
+      // Join the socket room
+      socket.emit('joinRoom', chatRoomId);
     };
 
-    setMessages([...messages, newMessage]);
+    init();
+
+    return () => {
+      socket.emit('leaveRoom', chatRoomId);
+    };
+  }, [chatRoomId]);
+
+  // Listen for real-time messages
+  useEffect(() => {
+    const handleNewMessage = (message) => {
+      if (message.chatRoomId === chatRoomId) {
+        setMessages(prev => [...prev, message]);
+        setIsOtherTyping(false);
+      }
+    };
+
+    const handleTyping = ({ userId }) => {
+      if (userId !== currentUserId) {
+        setIsOtherTyping(true);
+      }
+    };
+
+    const handleStopTyping = ({ userId }) => {
+      if (userId !== currentUserId) {
+        setIsOtherTyping(false);
+      }
+    };
+
+    socket.on('newMessage', handleNewMessage);
+    socket.on('userTyping', handleTyping);
+    socket.on('userStopTyping', handleStopTyping);
+
+    return () => {
+      socket.off('newMessage', handleNewMessage);
+      socket.off('userTyping', handleTyping);
+      socket.off('userStopTyping', handleStopTyping);
+    };
+  }, [chatRoomId, currentUserId]);
+
+  const handleInputChange = useCallback((text) => {
+    setInputText(text);
+
+    if (text.trim()) {
+      socket.emit('typing', { chatRoomId, userId: currentUserId });
+
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit('stopTyping', { chatRoomId, userId: currentUserId });
+      }, 2000);
+    } else {
+      socket.emit('stopTyping', { chatRoomId, userId: currentUserId });
+    }
+  }, [chatRoomId, currentUserId]);
+
+  const sendMessage = useCallback(async () => {
+    if (!inputText.trim()) return;
+
+    const token = await AsyncStorage.getItem('token');
+    const userId = await AsyncStorage.getItem('userId');
+    const username = await AsyncStorage.getItem('username');
+
+    socket.emit('sendMessage', {
+      chatRoomId,
+      senderId: userId,
+      text: inputText.trim(),
+      senderInfo: {
+        _id: userId,
+        username: username || 'Me',
+      },
+    });
+
     setInputText('');
+    socket.emit('stopTyping', { chatRoomId, userId: currentUserId });
+  }, [inputText, chatRoomId, currentUserId]);
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const renderMessage = ({ item }) => {
-    const isMe = item.sender === 'me';
+    const senderId = item.senderId?._id || item.senderId;
+    const isMe = senderId === currentUserId;
+
     return (
       <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperOther]}>
         <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleOther]}>
@@ -61,10 +153,29 @@ const ChatRoom = ({ route, navigation }) => {
             {item.text}
           </Text>
         </View>
-        <Text style={styles.messageTime}>{item.time}</Text>
+        <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>
+          {formatTime(item.createdAt)}
+        </Text>
       </View>
     );
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={C.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{chatName || 'Chat'}</Text>
+          <View style={styles.placeholder} />
+        </View>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={C.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -75,20 +186,41 @@ const ChatRoom = ({ route, navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backText}>Back</Text>
+            <Ionicons name="arrow-back" size={24} color={C.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{chatName}</Text>
+          <View style={styles.headerCenter}>
+            {otherAvatar ? (
+              <Image source={{ uri: otherAvatar }} style={styles.headerAvatar} />
+            ) : null}
+            <Text style={styles.headerTitle}>{chatName || 'Chat'}</Text>
+          </View>
           <View style={styles.placeholder} />
         </View>
 
         {/* Messages List */}
         <FlatList
+          ref={flatListRef}
           data={messages}
-          keyExtractor={item => item.id}
+          keyExtractor={(item, index) => item._id || index.toString()}
           renderItem={renderMessage}
           contentContainerStyle={styles.messagesContainer}
           showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          ListEmptyComponent={
+            <View style={styles.emptyChat}>
+              <Ionicons name="chatbubble-outline" size={48} color={C.border} />
+              <Text style={styles.emptyChatText}>Say hi! 👋</Text>
+            </View>
+          }
         />
+
+        {/* Typing Indicator */}
+        {isOtherTyping && (
+          <View style={styles.typingContainer}>
+            <Text style={styles.typingText}>{chatName} is typing...</Text>
+          </View>
+        )}
 
         {/* Input Bar */}
         <View style={styles.inputContainer}>
@@ -97,7 +229,7 @@ const ChatRoom = ({ route, navigation }) => {
             placeholder="Type a message..."
             placeholderTextColor={C.textLight}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleInputChange}
             multiline
           />
           <TouchableOpacity 
@@ -105,7 +237,7 @@ const ChatRoom = ({ route, navigation }) => {
             onPress={sendMessage}
             disabled={!inputText.trim()}
           >
-            <Text style={styles.sendButtonText}>Send</Text>
+            <Ionicons name="send" size={20} color={C.white} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -132,9 +264,15 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 5,
   },
-  backText: {
-    fontSize: 20,
-    color: C.primary,
+  headerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   headerTitle: {
     fontSize: 18,
@@ -142,14 +280,15 @@ const styles = StyleSheet.create({
     color: C.textDark,
   },
   placeholder: {
-    width: 30, // to balance the back button flex
+    width: 34,
   },
   messagesContainer: {
     padding: 15,
     paddingBottom: 20,
+    flexGrow: 1,
   },
   messageWrapper: {
-    marginBottom: 15,
+    marginBottom: 12,
     maxWidth: '80%',
   },
   messageWrapperMe: {
@@ -190,7 +329,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: C.textLight,
     marginTop: 4,
+  },
+  messageTimeMe: {
     alignSelf: 'flex-end',
+  },
+  typingContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+  },
+  typingText: {
+    fontSize: 13,
+    color: C.textMuted,
+    fontStyle: 'italic',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -214,9 +364,9 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     backgroundColor: C.primary,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     marginLeft: 10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -224,10 +374,22 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     backgroundColor: C.primaryLight,
   },
-  sendButtonText: {
-    color: C.white,
-    fontWeight: '600',
-    fontSize: 15,
+  loadingWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyChat: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+    gap: 10,
+  },
+  emptyChatText: {
+    fontSize: 16,
+    color: C.textMuted,
+    fontWeight: '500',
   },
 });
 
