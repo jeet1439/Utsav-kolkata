@@ -236,7 +236,7 @@ const Profile = ({navigation}) => {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

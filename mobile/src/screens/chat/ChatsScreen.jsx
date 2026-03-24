@@ -5,15 +5,16 @@ import {
   FlatList, 
   TouchableOpacity, 
   StyleSheet, 
-  SafeAreaView,
   Image,
   TextInput,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import socket, { SERVER_URL } from '../../store/socketService';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const C = {
   bg: "#FFFFFF", 
@@ -165,6 +166,7 @@ const ChatsScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+    <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Chats</Text>
       </View>
@@ -208,7 +210,6 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 30,
     paddingBottom: 10,
     backgroundColor: C.bg,
   },

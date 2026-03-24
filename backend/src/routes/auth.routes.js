@@ -34,7 +34,7 @@ router.post("/signup", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     
-    const dicebearUrl = `https://res.cloudinary.com/dzwismxgx/image/upload/v1755195870/istockphoto-1495088043-612x612_riz8ns.jpg`;
+    const dicebearUrl = `https://res.cloudinary.com/dzwismxgx/image/upload/v1774163391/default_hm6kr2.png`;
 
     const user = new User({
         email,

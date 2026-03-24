@@ -186,7 +186,7 @@ const Home = ({ navigation }) => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       {/* ── Map Section ── */}
       <View style={styles.mapSection}>

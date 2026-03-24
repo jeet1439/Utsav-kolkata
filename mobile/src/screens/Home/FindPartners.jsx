@@ -19,6 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Geolocation from "react-native-geolocation-service";
 import axios from "axios";
 import socket, { SERVER_URL } from '../../store/socketService';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const C = {
   bg: "#F5F6FA",
@@ -404,8 +405,8 @@ const FindPartners = ( { navigation }) => {
   const spin = spinVal.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   return (
-    <View style={S.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+    <SafeAreaView style={S.root}>
+       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
       <View style={S.utilityBar}>
         <Text style={S.sectionHeader}>Nearby People</Text>
         <TouchableOpacity style={S.refreshBtn} onPress={handleRefresh}>
@@ -440,7 +441,7 @@ const FindPartners = ( { navigation }) => {
           )}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -448,7 +449,7 @@ const S = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: C.bg,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 10 : 50,
+    // paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 10 : 50,
   },
   utilityBar: {
     flexDirection: "row",

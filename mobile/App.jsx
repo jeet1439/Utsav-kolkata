@@ -5,9 +5,10 @@ import StackNavigator from './src/navigation/StackNavigator.jsx';
 import { AppState } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { io } from 'socket.io-client';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const App = () => {
-   
+
   // const SERVER_URL = "http://192.168.0.100:3000";
 
   // const socket = io(SERVER_URL, {
@@ -39,9 +40,9 @@ const App = () => {
 
   // }, []);
   return (
-      <NavigationContainer>
-        <StackNavigator />
-      </NavigationContainer>
+    <NavigationContainer>
+      <StackNavigator />
+    </NavigationContainer>
   )
 }
 

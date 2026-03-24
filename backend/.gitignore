@@ -1,7 +1,7 @@
 node_modules/
 note/
-
-
+redis.js
+redis/
 .env
 
 package-lock.json
