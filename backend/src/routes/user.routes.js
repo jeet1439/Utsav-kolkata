@@ -1,6 +1,7 @@
 import express from "express";
 import cloudinary from "../lib/cloudConfig.js";
 import User from "../model/user.model.js";
+import mongoose from "mongoose";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import multer from "multer";
 import redis from '../redis/redis.js'
@@ -238,34 +239,78 @@ router.post("/update-location", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// router.post("/nearby-online", async (req, res) => {
+//   try {
+//     const { userId, latitude, longitude } = req.body;
+
+//     const nearbyUsers = await User.find({
+//       _id: { $ne: userId },
+//       location: {
+//         $near: {
+//           $geometry: {
+//             type: "Point",
+//             coordinates: [longitude, latitude],
+//           },
+//           $maxDistance: 5000,
+//         },
+//       },
+//     }).limit(50);
+
+//     const usersWithOnline = await Promise.all(
+//       nearbyUsers.map(async (user) => {
+//         const isOnline = await redis.get(`online:${user._id}`);
+//         console.log(isOnline)
+//         return {
+//           _id: user._id,
+//           name: user.username,
+//           avatar: user.profileImage[0],
+//           isOnline: isOnline === "true",
+//           bio: user.bio,
+//           distance: 1, 
+//         };
+//       })
+//     );
+
+//     res.json(usersWithOnline);
+//   } catch (error) {
+//     console.error("Nearby error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
 router.post("/nearby-online", async (req, res) => {
   try {
     const { userId, latitude, longitude } = req.body;
 
-    const nearbyUsers = await User.find({
-      _id: { $ne: userId },
-      location: {
-        $near: {
-          $geometry: {
+    const nearbyUsers = await User.aggregate([
+      {
+        $geoNear: {
+          near: {
             type: "Point",
             coordinates: [longitude, latitude],
           },
-          $maxDistance: 5000,
+          distanceField: "distance", 
+          maxDistance: 5000,
+          spherical: true,
+          query: {
+            _id: { $ne: new mongoose.Types.ObjectId(userId) },
+          },
         },
       },
-    }).limit(50);
+      { $limit: 50 },
+    ]);
 
     const usersWithOnline = await Promise.all(
       nearbyUsers.map(async (user) => {
         const isOnline = await redis.get(`online:${user._id}`);
-        console.log(isOnline)
+
         return {
           _id: user._id,
           name: user.username,
           avatar: user.profileImage[0],
-          isOnline: isOnline === "true",
           bio: user.bio,
-          distance: 1, 
+          isOnline: isOnline === "true",
+          distance: (user.distance / 1000).toFixed(2), // convert meters to km
         };
       })
     );
@@ -276,6 +321,5 @@ router.post("/nearby-online", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 export default router;
