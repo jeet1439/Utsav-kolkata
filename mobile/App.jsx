@@ -1,49 +1,109 @@
-import { View, Text, StatusBar } from 'react-native'
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import StackNavigator from './src/navigation/StackNavigator.jsx';
-import { AppState } from "react-native";
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { io } from 'socket.io-client';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  Animated,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+} from 'react-native';
+import messaging from '@react-native-firebase/messaging';
 
 const App = () => {
+  const [notifData, setNotifData] = useState({
+    title: '',
+    body: '',
+  });
+  const [visible, setVisible] = useState(false);
 
-  // const SERVER_URL = "http://192.168.0.100:3000";
+  const slideAnim = useRef(new Animated.Value(-100)).current;
 
-  // const socket = io(SERVER_URL, {
-  //   transports: ["websocket"],
-  // });
+  // 🔔 Foreground Notification Listener
+  useEffect(() => {
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      setNotifData({
+        title: remoteMessage.notification?.title || 'Notification',
+        body: remoteMessage.notification?.body || '',
+      });
 
-  //  useEffect(() => {
+      showBanner();
+    });
 
-  //   const handleAppStateChange = async (state) => {
+    return unsubscribe;
+  }, []);
 
-  //     const userId = await AsyncStorage.getItem("userId");
+  // 🔥 Show banner animation
+  const showBanner = () => {
+    setVisible(true);
 
-  //     if (!userId) return;
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
 
-  //     if (state === "background" || state === "inactive") {
-  //       socket.emit("userOffline", userId);
-  //     }
+    // Auto hide after 4 sec
+    setTimeout(() => {
+      hideBanner();
+    }, 4000);
+  };
 
-  //     if (state === "active") {
-  //       socket.emit("userOnline", userId);
-  //     }
-  //   };
+  // 🔽 Hide banner
+  const hideBanner = () => {
+    Animated.timing(slideAnim, {
+      toValue: -100,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => setVisible(false));
+  };
 
-  //   const sub = AppState.addEventListener("change", handleAppStateChange);
-
-  //   return () => {
-  //     sub.remove();
-  //   };
-
-  // }, []);
   return (
-    <NavigationContainer>
-      <StackNavigator />
-    </NavigationContainer>
-  )
-}
+    <>
+      <NavigationContainer>
+        <StackNavigator />
+      </NavigationContainer>
 
-export default App
+      {visible && (
+        <Animated.View
+          style={[
+            styles.banner,
+            { transform: [{ translateY: slideAnim }] },
+          ]}
+        >
+          <SafeAreaView>
+            <TouchableOpacity onPress={hideBanner}>
+              <Text style={styles.title}>{notifData.title}</Text>
+              <Text style={styles.body}>{notifData.body}</Text>
+            </TouchableOpacity>
+          </SafeAreaView>
+        </Animated.View>
+      )}
+    </>
+  );
+};
+
+export default App;
+
+const styles = StyleSheet.create({
+  banner: {
+    position: 'absolute',
+    top: 0,
+    width: '100%',
+    backgroundColor: '#6C63FF',
+    padding: 15,
+    zIndex: 999,
+    elevation: 10,
+  },
+  title: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  body: {
+    color: '#fff',
+    fontSize: 13,
+    marginTop: 2,
+  },
+});

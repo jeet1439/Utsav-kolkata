@@ -18,6 +18,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Geolocation from 'react-native-geolocation-service';
 import { LeafletView } from 'react-native-leaflet-view';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import messaging from '@react-native-firebase/messaging';
+import axios from 'axios';
+
+
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -176,9 +180,124 @@ const Home = ({ navigation }) => {
     }
   };
 
+  async function requestNotificationPermission() {
+    if (Platform.OS === 'android') {
+      // Android 13+ requires explicit permission for notifications
+      if (Platform.Version >= 33) {
+        try {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            {
+              title: 'Notification Permission',
+              message: 'App needs access to send you ride updates.',
+              buttonPositive: 'OK',
+            },
+          );
+          return granted === PermissionsAndroid.RESULTS.GRANTED;
+        } catch (err) {
+          console.warn('Notification permission error:', err);
+          return false;
+        }
+      }
+      return true; // Android versions below 13 grant this automatically at install
+    } else if (Platform.OS === 'ios') {
+      // If you are using Firebase Messaging, you would uncomment this:
+      /*
+      try {
+        const authStatus = await messaging().requestPermission();
+        return (
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL
+        );
+      } catch (error) {
+        console.warn('iOS Notification error:', error);
+        return false;
+      }
+      */
+      return true;
+    }
+  }
+
   useEffect(() => {
-    getLocation();
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const res = await axios.get(`http://192.168.0.100:3000/api/user/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUser(res.data.user);// Debug log for fetched user data
+      } catch (err) {
+        console.error('fetchProfile:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
+
+  const sendFCMTokenToServer = async (fcmToken) => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+
+      await axios.post(
+        "http://192.168.0.100:3000/api/user/update-fcm-token",
+        {
+          userId: user._id,
+          fcmToken,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      console.log("FCM token saved to DB");
+    } catch (error) {
+      console.error("Error saving FCM token:", error);
+    }
+  };
+
+  const getFCMToken = async () => {
+    try {
+      const fcmToken = await messaging().getToken();
+      // console.log("FCM Token:", fcmToken);
+
+      if (fcmToken && user?._id) {
+        await sendFCMTokenToServer(fcmToken);
+      }
+    } catch (error) {
+      console.error("FCM error:", error);
+    }
+  };
+
+  useEffect(() => {
+  const initApp = async () => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const hasLocation = await requestLocationPermission();
+      if (hasLocation) {
+        await getLocation();
+      } else {
+        console.log("Location permission denied");
+      }
+
+      const hasNotification = await requestNotificationPermission();
+      if (!hasNotification) {
+        console.log("Notification permission denied");
+        return;
+      }
+      if (user?._id) {
+        await getFCMToken();
+      }
+    } catch (error) {
+      console.error("Init error:", error);
+    }
+  };
+
+  if (user?._id) {
+    initApp();
+  }
+
+}, [user]);
 
   useEffect(() => {
     if (location && token) fetchNearestPandleData();

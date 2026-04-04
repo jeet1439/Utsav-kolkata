@@ -322,4 +322,22 @@ router.post("/nearby-online", async (req, res) => {
   }
 });
 
+//route to update the fcm token of the user
+router.post("/update-fcm-token", async (req, res) => {
+  try {
+    const { userId, fcmToken } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { fcmToken },
+      { new: true }
+    ).select("-password");
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error("Update FCM token error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

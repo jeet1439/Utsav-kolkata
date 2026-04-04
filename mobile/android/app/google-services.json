@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "5177305305",
+    "project_id": "utsav-kolkata",
+    "storage_bucket": "utsav-kolkata.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:5177305305:android:64cf5370104038e77cf6c8",
+        "android_client_info": {
+          "package_name": "com.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD7I7iwYJjJkkARI-DXgaCw-rJLf-5DIRk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

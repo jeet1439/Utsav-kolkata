@@ -89,4 +89,92 @@ router.get("/messages/:roomId", authMiddleware, async (req, res) => {
   }
 });
 
+// ── DELETE /room/:roomId — delete chat room and all messages ─────────
+router.delete("/room/:roomId", authMiddleware, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user._id;
+
+    // Check if user is part of this chat
+    const room = await ChatRoom.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Chat room not found" });
+    }
+
+    if (!room.participants.includes(userId)) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    // Delete all messages in this room
+    await Message.deleteMany({ chatRoomId: roomId });
+
+    // Delete the chat room
+    await ChatRoom.findByIdAndDelete(roomId);
+
+    res.status(200).json({ message: "Chat deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting chat:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+// ── DELETE /messages/:roomId — clear chat messages only ─────────
+router.delete("/messages/:roomId", authMiddleware, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user._id;
+
+    const room = await ChatRoom.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({ message: "Chat room not found" });
+    }
+
+    if (!room.participants.includes(userId)) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    await Message.deleteMany({ chatRoomId: roomId });
+
+    res.status(200).json({ message: "Chat cleared successfully" });
+  } catch (error) {
+    console.error("Error clearing messages:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ── DELETE /message/:messageId ─────────
+router.delete("/message/:messageId", authMiddleware, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user._id;
+
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (message.senderId.toString() !== userId.toString()) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    await Message.findByIdAndDelete(messageId);
+
+    // EMIT REAL-TIME DELETE
+    const io = req.app.get("io"); 
+    io.to(message.chatRoomId.toString()).emit("messageDeleted", {
+      messageId,
+    });
+
+    res.status(200).json({ message: "Message deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting message:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
 export default router;

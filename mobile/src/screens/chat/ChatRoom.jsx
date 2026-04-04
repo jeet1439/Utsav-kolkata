@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -100,6 +101,20 @@ const ChatRoom = ({ route, navigation }) => {
     };
   }, [chatRoomId, currentUserId]);
 
+  useEffect(() => {
+    const handleDelete = ({ messageId }) => {
+      setMessages(prev => prev.filter(msg => msg._id !== messageId));
+    };
+
+    socket.on('messageDeleted', handleDelete);
+
+    return () => {
+      socket.off('messageDeleted', handleDelete);
+    };
+  }, []);
+
+
+
   const handleInputChange = useCallback((text) => {
     setInputText(text);
 
@@ -142,21 +157,61 @@ const ChatRoom = ({ route, navigation }) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const deleteMessage = async (messageId) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+
+      await axios.delete(`${SERVER_URL}/api/chat/message/${messageId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Optimistic UI
+      setMessages(prev => prev.filter(msg => msg._id !== messageId));
+
+    } catch (error) {
+      console.log('Delete error:', error);
+    }
+  };
+
+
+
   const renderMessage = ({ item }) => {
     const senderId = item.senderId?._id || item.senderId;
     const isMe = senderId === currentUserId;
 
+
+
     return (
-      <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperOther]}>
-        <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleOther]}>
-          <Text style={[styles.messageText, isMe ? styles.messageTextMe : styles.messageTextOther]}>
-            {item.text}
+      <TouchableOpacity
+        onLongPress={() => {
+          if (isMe) {
+            Alert.alert(
+              "Delete Message",
+              "Are you sure you want to delete this message?",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () => deleteMessage(item._id),
+                },
+              ]
+            );
+          }
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.messageWrapper, isMe ? styles.messageWrapperMe : styles.messageWrapperOther]}>
+          <View style={[styles.messageBubble, isMe ? styles.messageBubbleMe : styles.messageBubbleOther]}>
+            <Text style={[styles.messageText, isMe ? styles.messageTextMe : styles.messageTextOther]}>
+              {item.text}
+            </Text>
+          </View>
+          <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>
+            {formatTime(item.createdAt)}
           </Text>
         </View>
-        <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>
-          {formatTime(item.createdAt)}
-        </Text>
-      </View>
+      </TouchableOpacity>
     );
   };
 

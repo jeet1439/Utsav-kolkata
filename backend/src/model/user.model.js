@@ -52,6 +52,10 @@ const userSchema = new mongoose.Schema({
             default: [0, 0]
         }
     },
+    fcmToken: {
+        type: String,
+        default: ""
+    },
     lastActive: Date,
 });
 userSchema.index({ location: "2dsphere" });
