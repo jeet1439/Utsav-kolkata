@@ -12,6 +12,8 @@ import http from "http";
 import Message from './model/message.model.js';
 import ChatRoom from './model/chatRoom.model.js';
 import { encrypt, decrypt } from './lib/encryption.js';
+import admin from "../src/lib/firebase.js";
+
 
 
 dotenv.config();
@@ -29,6 +31,39 @@ app.use('/api/pandals', pandleRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/chat', chatRoutes);
 
+
+app.post("/api/test-notification", async (req, res) => {
+  try {
+    const { token, title, body } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: "FCM token is required" });
+    }
+
+    const message = {
+      token: token, // device token from frontend
+      notification: {
+        title: title || "Test Notification",
+        body: body || "This is a test push notification 🚀",
+      },
+      data: {
+        type: "test",
+      },
+    };
+
+    const response = await admin.messaging().send(message);
+
+    res.status(200).json({
+      success: true,
+      response,
+    });
+  } catch (error) {
+    console.error("Notification error:", error);
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
 
 mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log("MongoDB connected"))
