@@ -29,7 +29,7 @@ const COLS = 3;
 const GAP = 1.5;
 const TILE = (SCREEN_WIDTH - GAP * (COLS - 1)) / COLS;
 
-const BASE_URL = 'http://192.168.0.100:3000';
+const BASE_URL = 'http://192.168.0.9:3000';
 const C = {
   bg: '#FFFFFF',
   surface: '#FAFAFA',
@@ -39,7 +39,7 @@ const C = {
   textMuted: '#B2B2B2',
   border: '#EBEBEB',
   borderLight: '#F0F0F0',
-  accent: '#8B3DFF',
+  accent: '#2785ff',
   accentRed: '#E53E3E',
   white: '#FFFFFF',
   black: '#000000',

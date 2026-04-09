@@ -12,7 +12,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 const Tab = createBottomTabNavigator();
 
 const COLORS = {
-  primary: "#8B3DFF",
+  primary: "#FF4D6D",
   surface: "#FFFFFF",
   text: "#1A1A1A",
   muted: "#ADADAD",

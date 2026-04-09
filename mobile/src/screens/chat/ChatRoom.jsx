@@ -19,15 +19,15 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const C = {
-  bg: "#F5F6FA",
+  bg: "#FFF8F9",           
   white: "#FFFFFF",
-  primary: "#8B3DFF",
-  primaryLight: "#F3E8FF",
-  primaryText: "#9333EA",
-  textDark: "#0F172A",
-  textMuted: "#64748B",
-  textLight: "#94A3B8",
-  border: "#F1F5F9",
+  primary: "#FF4D6D",   
+  primaryLight: "#FFE4E8",  
+  primaryText: "#E11D48",  
+  textDark: "#2B2B2B",     
+  textMuted: "#8A7F88",    
+  textLight: "#B9AEB5", 
+  border: "#FFE4E8",       
 };
 
 const ChatRoom = ({ route, navigation }) => {

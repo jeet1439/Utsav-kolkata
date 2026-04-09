@@ -17,18 +17,18 @@ import { useUserStore } from '../../store/userStore.js';
 import CustomModal from '../../components/CustomModal.jsx';
 
 const COLORS = {
-  primary: "#8B3DFF",
-  primaryLight: "#F3E8FF",
-  gold: "#9B6FD4",
-  goldLight: "#C4A0F0",
-  dark: "#12102A",
-  surface: "#FAF8FF",
-  surfaceAlt: "#F0EBFF",
-  text: "#1E1035",
-  textMuted: "#7E6A9E",
+  primary: "#FF4D6D",        
+  primaryLight: "#FFE4E8",   
+  gold: "#FF8FA3",         
+  goldLight: "#FFC2D1",    
+  dark: "#1A1A2E",           
+  surface: "#FFF8F9",      
+  surfaceAlt: "#FFEFF3",    
+  text: "#2B2B2B",        
+  textMuted: "#8A7F88",      
   white: "#FFFFFF",
-  cardBg: "#FDFBFF",
-  shadow: "rgba(139, 61, 255, 0.15)",
+  cardBg: "#FFFFFF",       
+  shadow: "rgba(255, 77, 109, 0.18)", 
 };
 
 const InputField = ({ label, icon, ...props }) => {
@@ -123,7 +123,7 @@ const Login = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const res = await fetch('http://192.168.0.100:3000/api/auth/login', {
+      const res = await fetch('http://192.168.0.9:3000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

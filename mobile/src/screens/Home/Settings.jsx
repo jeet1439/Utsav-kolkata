@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
 
   logoutButton: {
     flexDirection: 'row',
-    backgroundColor: '#8B3DFF',
+    backgroundColor: '#ff3d7e',
     paddingVertical: 14,
     borderRadius: 10,
     justifyContent: 'center',

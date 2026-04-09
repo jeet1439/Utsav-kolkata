@@ -27,21 +27,35 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 // ─── Color Palette ────────────────────────────────────────────────────────────
-const COLORS = {
-  primary: "#8B3DFF",
-  primaryLight: "#F3E8FF",
-  gold: "#9B6FD4",
-  goldLight: "#C4A0F0",
-  dark: "#12102A",
-  surface: "#FAF8FF",
-  surfaceAlt: "#F0EBFF",
-  text: "#1E1035",
-  textMuted: "#7E6A9E",
-  white: "#FFFFFF",
-  cardBg: "#FDFBFF",
-  shadow: "rgba(139, 61, 255, 0.15)",
-};
+// const COLORS = {
+//   primary: "#8B3DFF",
+//   primaryLight: "#F3E8FF",
+//   gold: "#9B6FD4",
+//   goldLight: "#C4A0F0",
+//   dark: "#12102A",
+//   surface: "#FAF8FF",
+//   surfaceAlt: "#F0EBFF",
+//   text: "#1E1035",
+//   textMuted: "#7E6A9E",
+//   white: "#FFFFFF",
+//   cardBg: "#FDFBFF",
+//   shadow: "rgba(139, 61, 255, 0.15)",
+// };
 
+const COLORS = {
+  primary: "#FF4D6D",       
+  primaryLight: "#FFE4E8",  
+  accent: "#FF8FA3",        
+  accentSoft: "#FFC2D1",   
+  dark: "#1A1A2E",          
+  surface: "#FFF8F9",      
+  surfaceAlt: "#FFEFF3",     
+  text: "#2B2B2B",           
+  textMuted: "#8A7F88",    
+  white: "#FFFFFF",
+  cardBg: "#FFFFFF",
+  shadow: "rgba(255, 77, 109, 0.18)",
+};
 // ─── Pandal Card ──────────────────────────────────────────────────────────────
 const PandalCard = ({ item, index, onPress }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -168,7 +182,7 @@ const Home = ({ navigation }) => {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://192.168.0.100:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,
+        `http://192.168.0.9:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
@@ -222,7 +236,7 @@ const Home = ({ navigation }) => {
     (async () => {
       try {
         const token = await AsyncStorage.getItem('token');
-        const res = await axios.get(`http://192.168.0.100:3000/api/user/me`, {
+        const res = await axios.get(`http://192.168.0.9:3000/api/user/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(res.data.user);// Debug log for fetched user data
@@ -239,7 +253,7 @@ const Home = ({ navigation }) => {
       const token = await AsyncStorage.getItem("token");
 
       await axios.post(
-        "http://192.168.0.100:3000/api/user/update-fcm-token",
+        "http://192.168.0.9:3000/api/user/update-fcm-token",
         {
           userId: user._id,
           fcmToken,
@@ -312,13 +326,13 @@ const Home = ({ navigation }) => {
         {location ? (
           <LeafletView
             mapCenterPosition={{ lat: location.latitude, lng: location.longitude }}
-            zoom={15}
+            zoom={16}
             mapMarkers={[
               {
                 id: 'currentLocation',
                 position: { lat: location.latitude, lng: location.longitude },
-                icon: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
-                size: [36, 36],
+                icon: 'https://res.cloudinary.com/dzwismxgx/image/upload/v1775500433/locationic_uycdo1.png',
+                size: [60, 60],
               },
               ...(nearestPandle?.map((pandal, i) => ({
                 id: `pandal-${i}`,
@@ -326,8 +340,8 @@ const Home = ({ navigation }) => {
                   lat: pandal.location.coordinates[1],
                   lng: pandal.location.coordinates[0],
                 },
-                icon: 'https://res.cloudinary.com/dzwismxgx/image/upload/v1758135594/location_ukspja.png',
-                size: [32, 32],
+                icon: 'https://res.cloudinary.com/dzwismxgx/image/upload/v1775501136/pandal_y0ju5z.png',
+                size: [50, 50],
               })) || []),
             ]}
           />

@@ -22,20 +22,20 @@ import socket, { SERVER_URL } from '../../store/socketService';
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const C = {
-  bg: "#F5F6FA",
+  bg: "#FFF8F9",         
   white: "#FFFFFF",
   card: "#FFFFFF",
-  primary: "#8B3DFF",
-  primaryLight: "#F3E8FF",
-  primaryText: "#9333EA",
-  avatarBg: "#FCE7D9",
-  online: "#10B981",
-  offline: "#CBD5E1",
-  textDark: "#0F172A",
-  textMuted: "#64748B",
-  textLight: "#94A3B8",
-  btnSecondary: "#F1F5F9",
-  border: "#F1F5F9",
+  primary: "#FF4D6D",  
+  primaryLight: "#FFE4E8",
+  primaryText: "#E11D48",  
+  avatarBg: "#FFEFF3", 
+  online: "#22C55E",   
+  offline: "#E2E8F0",       
+  textDark: "#2B2B2B",     
+  textMuted: "#8A7F88",     
+  textLight: "#B9AEB5",   
+  btnSecondary: "#FFEFF3", 
+  border: "#FFE4E8",       
 };
 
 const formatDistance = (dist) => {
