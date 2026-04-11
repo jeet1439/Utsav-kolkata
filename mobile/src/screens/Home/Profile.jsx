@@ -29,7 +29,7 @@ const COLS = 3;
 const GAP = 1.5;
 const TILE = (SCREEN_WIDTH - GAP * (COLS - 1)) / COLS;
 
-const BASE_URL = 'http://192.168.0.9:3000';
+const BASE_URL = 'http://10.30.75.63:3000';
 const C = {
   bg: '#FFFFFF',
   surface: '#FAFAFA',
@@ -116,7 +116,7 @@ const ImageTile = ({ uri, onLongPress }) => {
   );
 };
 
-const Profile = ({navigation}) => {
+const Profile = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('grid');
@@ -236,7 +236,7 @@ const Profile = ({navigation}) => {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

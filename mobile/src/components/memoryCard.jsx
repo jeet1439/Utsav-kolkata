@@ -6,15 +6,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Pressable,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import moment from "moment";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 
-const MemoryCard = ({ item }) => {
-  const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(item.likes || 0);
+const MemoryCard = ({ item, pandalId, onImagePress }) => {
+  const [liked, setLiked] = useState(item.isLiked || false);
+  const [likes, setLikes] = useState(item.likesCount || 0);
   const [views, setViews] = useState(0);
 
   const heartScale = useRef(new Animated.Value(1)).current;
@@ -42,7 +43,8 @@ const MemoryCard = ({ item }) => {
     ]).start();
   }, []);
 
-  const handleLike = () => {
+  const handleLike = async () => {
+    // Optimistic update
     const newLiked = !liked;
     setLiked(newLiked);
     setLikes((prev) => (newLiked ? prev + 1 : prev - 1));
@@ -61,10 +63,37 @@ const MemoryCard = ({ item }) => {
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Persist to backend
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const res = await axios.post(
+        `http://10.30.75.63:3000/api/pandals/${pandalId}/featured/${item._id}/like`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000,
+        }
+      );
+      // Sync with server response
+      setLiked(res.data.liked);
+      setLikes(res.data.likesCount);
+    } catch (error) {
+      // Revert on failure
+      console.error("Like toggle failed:", error);
+      setLiked(!newLiked);
+      setLikes((prev) => (newLiked ? prev - 1 : prev + 1));
+    }
   };
 
   const handleNavigate = () => {
     navigation.navigate("PersonProfile", { userId: item.userId._id });
+  };
+
+  const handleImagePress = () => {
+    if (onImagePress) {
+      onImagePress(item, liked, likes);
+    }
   };
 
   return (
@@ -90,15 +119,23 @@ const MemoryCard = ({ item }) => {
         <Ionicons name="ellipsis-horizontal" size={20} color="#B0A090" style={styles.moreIcon} />
       </TouchableOpacity>
 
-      {/* Image */}
-      <View style={styles.imageWrapper}>
+      {/* Image — tappable to open modal */}
+      <TouchableOpacity
+        style={styles.imageWrapper}
+        onPress={handleImagePress}
+        activeOpacity={0.95}
+      >
         <Image
           source={{ uri: item.url }}
           style={styles.memoryImage}
           resizeMode="cover"
         />
         <View style={styles.imageGradient} />
-      </View>
+        {/* Expand hint */}
+        <View style={styles.expandHint}>
+          <Ionicons name="expand-outline" size={16} color="rgba(255,255,255,0.8)" />
+        </View>
+      </TouchableOpacity>
 
       <View style={styles.actionsRow}>
         <TouchableOpacity onPress={handleLike} style={styles.actionBtn} activeOpacity={0.7}>
@@ -204,6 +241,17 @@ const styles = StyleSheet.create({
     right: 0,
     height: 80,
     backgroundColor: "transparent",
+  },
+  expandHint: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   actionsRow: {
     flexDirection: "row",

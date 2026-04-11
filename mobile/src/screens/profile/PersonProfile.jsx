@@ -76,13 +76,13 @@ const PersonProfile = () => {
       try {
         const token = await AsyncStorage.getItem("token");
         console.log(token)
-        const res = await fetch(`http://192.168.0.9:3000/api/user/getuser/${userId}`);
+        const res = await fetch(`http://10.30.75.63:3000/api/user/getuser/${userId}`);
         const data = await res.json();
         setUser(data);
         setFollowerCount(data?.followers.length);
         setFollowingCount(data?.followings.length);
         const followRes = await fetch(
-          `http://192.168.0.9:3000/api/user/is-following/${userId}`,
+          `http://10.30.75.63:3000/api/user/is-following/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -126,7 +126,7 @@ const PersonProfile = () => {
       const token = await AsyncStorage.getItem("token");
 
       const res = await fetch(
-        `http://192.168.0.9:3000/api/user/${endpoint}/${userId}`,
+        `http://10.30.75.63:3000/api/user/${endpoint}/${userId}`,
         {
           method: "POST",
           headers: {

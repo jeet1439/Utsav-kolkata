@@ -34,7 +34,6 @@ const App = () => {
     return unsubscribe;
   }, []);
 
-  // 🔥 Show banner animation
   const showBanner = () => {
     setVisible(true);
 
@@ -50,7 +49,6 @@ const App = () => {
     }, 4000);
   };
 
-  // 🔽 Hide banner
   const hideBanner = () => {
     Animated.timing(slideAnim, {
       toValue: -100,
@@ -91,7 +89,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     width: '100%',
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#FF4D6D',
     padding: 15,
     zIndex: 999,
     elevation: 10,

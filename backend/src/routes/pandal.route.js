@@ -1,9 +1,11 @@
 // routes/pandalRoutes.js
 import express from "express";
 import Pandal from "../model/pandal.modal.js";
+import User from "../model/user.model.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import multer from "multer";
 import cloudinary from "../lib/cloudConfig.js";
+import admin from "../lib/firebase.js";
 const router = express.Router();
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -83,16 +85,16 @@ router.post("/:pandalId/featured-image", authMiddleware, upload.single("image"),
           pandalId,
           {
             $push: {
-             featuredPictures: {
-                  $each: [
-                    {
-                      url: imageUrl,
-                      userId: req.user._id,
-                      caption: caption || "",
-                    }
-                  ],
-                  $position: 0  
-                }
+              featuredPictures: {
+                $each: [
+                  {
+                    url: imageUrl,
+                    userId: req.user._id,
+                    caption: caption || "",
+                  }
+                ],
+                $position: 0
+              }
             },
           },
           { new: true }
@@ -109,6 +111,69 @@ router.post("/:pandalId/featured-image", authMiddleware, upload.single("image"),
   }
 }
 );
+
+// ── Toggle like on a featured picture ────────────────────────────────────────
+router.post("/:pandalId/featured/:pictureId/like", authMiddleware, async (req, res) => {
+  try {
+    const { pandalId, pictureId } = req.params;
+    const userId = req.user._id;
+
+    const pandal = await Pandal.findById(pandalId);
+    if (!pandal) return res.status(404).json({ message: "Pandal not found" });
+
+    const picture = pandal.featuredPictures.id(pictureId);
+    if (!picture) return res.status(404).json({ message: "Picture not found" });
+
+    const alreadyLiked = picture.likes.includes(userId);
+
+    if (alreadyLiked) {
+      picture.likes.pull(userId);
+    } else {
+      picture.likes.addToSet(userId);
+    }
+
+    await pandal.save();
+
+    if (!alreadyLiked && picture.userId.toString() !== userId.toString()) {
+      try {
+        const liker = await User.findById(userId).select("username");
+        const imageOwner = await User.findById(picture.userId).select("fcmToken username");
+        // console.log(imageOwner?.fcmToken);
+        if (imageOwner?.fcmToken) {
+          await admin.messaging().send({
+            token: imageOwner.fcmToken,
+            notification: {
+              title: "Hey!",
+              body: `${liker?.username || "Someone"} liked your photo at ${pandal.title}`,
+            },
+            android: {
+              notification: {
+                icon: "ic_notification",
+                color: "#FF4D6D",
+                channel_id: "default_channel",
+              },
+            },
+            data: {
+              type: "like",
+              pandalId: pandalId,
+              pictureId: pictureId,
+            },
+          });
+        }
+      } catch (notifError) {
+        console.error("Like notification error:", notifError.message);
+      }
+    }
+
+    res.status(200).json({
+      liked: !alreadyLiked,
+      likesCount: picture.likes.length,
+    });
+  } catch (error) {
+    console.error("Error toggling like:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 router.post("/", async (req, res) => {
   try {
@@ -137,7 +202,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const pandal = await Pandal.findById(req.params.id)
       .populate("featuredPictures.userId", "username profileImage");
@@ -146,7 +211,15 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "Pandal not found" });
     }
 
-    res.status(200).json(pandal);
+    const userId = req.user._id.toString();
+    const pandalObj = pandal.toObject();
+    pandalObj.featuredPictures = pandalObj.featuredPictures.map((pic) => ({
+      ...pic,
+      likesCount: pic.likes ? pic.likes.length : 0,
+      isLiked: pic.likes ? pic.likes.some((id) => id.toString() === userId) : false,
+    }));
+
+    res.status(200).json(pandalObj);
   } catch (error) {
     console.error("Error fetching pandal:", error);
     res.status(500).json({ message: "Server error" });

@@ -15,7 +15,14 @@ router.post("/send-notification", async (req, res) => {
       token: token, // device token from frontend
       notification: {
         title: title || "Test Notification",
-        body: body || "This is a test push notification 🚀",
+        body: body || "This is a test push notification ",
+      },
+      android: {
+        notification: {
+          icon: "ic_notification",
+          color: "#d60096",
+          channel_id: "default_channel",
+        },
       },
       data: {
         type: "test",

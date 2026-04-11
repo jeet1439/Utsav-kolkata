@@ -10,13 +10,17 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const COLORS = {
-  primary: "#8B3DFF",
-  gold: "#9B6FD4",
-  surface: "#FAF8FF",
-  surfaceAlt: "#F0EBFF",
-  text: "#1E1035",
-  textMuted: "#7E6A9E",
+  primary: "#FF4D6D",
+  primaryLight: "#FFE4E8",
+  gold: "#FF8FA3",
+  goldLight: "#FFC2D1",
+  dark: "#1A1A2E",
+  surface: "#FFF8F9",
+  surfaceAlt: "#FFEFF3",
+  text: "#2B2B2B",
+  textMuted: "#8A7F88",
   white: "#FFFFFF",
+  shadow: "rgba(255, 77, 109, 0.18)",
 };
 
 const LoadingDot = ({ index }) => {
@@ -41,7 +45,7 @@ const LoadingDot = ({ index }) => {
 };
 
 const Splash = ({ navigation }) => {
-  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
 
   useEffect(() => {

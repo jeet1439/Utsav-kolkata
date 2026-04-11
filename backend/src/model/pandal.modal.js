@@ -6,6 +6,7 @@ const FeaturedPictureSchema = new mongoose.Schema(
     url: { type: String, required: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     caption: { type: String },
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true }
 );

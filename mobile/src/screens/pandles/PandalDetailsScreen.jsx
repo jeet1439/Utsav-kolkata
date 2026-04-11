@@ -23,24 +23,25 @@ import { launchImageLibrary } from "react-native-image-picker";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MemoryCard from "../../components/memoryCard";
+import FeaturedImageModal from "../../components/FeaturedImageModal";
 
 const { width, height } = Dimensions.get("window");
 const HERO_HEIGHT = 300;
 
 // ─── Color Palette (matches Home.js) ─────────────────────────────────────────
 const COLORS = {
-  primary: "#FF4D6D",      
-  primaryLight: "#FFE4E8",   
-  gold: "#FF8FA3",         
-  goldLight: "#FFC2D1",     
-  dark: "#1A1A2E",         
-  surface: "#FFF8F9",       
-  surfaceAlt: "#FFEFF3",    
-  text: "#2B2B2B",          
-  textMuted: "#8A7F88",  
+  primary: "#FF4D6D",
+  primaryLight: "#FFE4E8",
+  gold: "#FF8FA3",
+  goldLight: "#FFC2D1",
+  dark: "#1A1A2E",
+  surface: "#FFF8F9",
+  surfaceAlt: "#FFEFF3",
+  text: "#2B2B2B",
+  textMuted: "#8A7F88",
   white: "#FFFFFF",
-  cardBg: "#FFFFFF",        
-  border: "rgba(255, 77, 109, 0.18)", 
+  cardBg: "#FFFFFF",
+  border: "rgba(255, 77, 109, 0.18)",
 };
 
 // ─── Info Chip ─────────────────────────────────────────────────────────────────
@@ -69,6 +70,12 @@ const PandalDetailsScreen = ({ route, navigation }) => {
   const [caption, setCaption] = useState("");
   const [memories, setMemories] = useState([]);
 
+  // Featured Image Modal state
+  const [featuredModalVisible, setFeaturedModalVisible] = useState(false);
+  const [selectedMemory, setSelectedMemory] = useState(null);
+  const [selectedMemoryLiked, setSelectedMemoryLiked] = useState(false);
+  const [selectedMemoryLikes, setSelectedMemoryLikes] = useState(0);
+
   const scrollY = useRef(new Animated.Value(0)).current;
   const modalSlide = useRef(new Animated.Value(height)).current;
 
@@ -82,7 +89,10 @@ const PandalDetailsScreen = ({ route, navigation }) => {
     const fetchMemories = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`http://192.168.0.9:3000/api/pandals/${item._id}`);
+        const token = await AsyncStorage.getItem("token");
+        const res = await fetch(`http://10.30.75.63:3000/api/pandals/${item._id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await res.json();
         const pandalMemories = data.featuredPictures.map((pic) => ({
           ...pic,
@@ -168,7 +178,7 @@ const PandalDetailsScreen = ({ route, navigation }) => {
       formData.append("caption", caption);
 
       const res = await axios.post(
-        `http://192.168.0.9:3000/api/pandals/${item._id}/featured-image`,
+        `http://10.30.75.63:3000/api/pandals/${item._id}/featured-image`,
         formData,
         {
           headers: {
@@ -190,6 +200,65 @@ const PandalDetailsScreen = ({ route, navigation }) => {
       alert("Failed to upload image");
     } finally {
       setUploading(false);
+    }
+  };
+
+  // ── Featured Image Modal handlers ──
+  const openFeaturedModal = (mem, isLiked, likesCount) => {
+    setSelectedMemory(mem);
+    setSelectedMemoryLiked(isLiked);
+    setSelectedMemoryLikes(likesCount);
+    setFeaturedModalVisible(true);
+  };
+
+  const closeFeaturedModal = () => {
+    setFeaturedModalVisible(false);
+    setSelectedMemory(null);
+  };
+
+  const handleModalLike = async () => {
+    if (!selectedMemory) return;
+    const newLiked = !selectedMemoryLiked;
+    setSelectedMemoryLiked(newLiked);
+    setSelectedMemoryLikes((prev) => (newLiked ? prev + 1 : prev - 1));
+
+    // Also update the memory in the list
+    setMemories((prev) =>
+      prev.map((m) =>
+        m._id === selectedMemory._id
+          ? { ...m, isLiked: newLiked, likesCount: newLiked ? (m.likesCount || 0) + 1 : Math.max((m.likesCount || 0) - 1, 0) }
+          : m
+      )
+    );
+
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const res = await axios.post(
+        `http://10.30.75.63:3000/api/pandals/${item._id}/featured/${selectedMemory._id}/like`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setSelectedMemoryLiked(res.data.liked);
+      setSelectedMemoryLikes(res.data.likesCount);
+      setMemories((prev) =>
+        prev.map((m) =>
+          m._id === selectedMemory._id
+            ? { ...m, isLiked: res.data.liked, likesCount: res.data.likesCount }
+            : m
+        )
+      );
+    } catch (error) {
+      console.error("Modal like failed:", error);
+      // Revert
+      setSelectedMemoryLiked(!newLiked);
+      setSelectedMemoryLikes((prev) => (newLiked ? prev - 1 : prev + 1));
+      setMemories((prev) =>
+        prev.map((m) =>
+          m._id === selectedMemory._id
+            ? { ...m, isLiked: !newLiked, likesCount: newLiked ? Math.max((m.likesCount || 0) - 1, 0) : (m.likesCount || 0) + 1 }
+            : m
+        )
+      );
     }
   };
 
@@ -305,7 +374,13 @@ const PandalDetailsScreen = ({ route, navigation }) => {
                 data={memories}
                 keyExtractor={(mem) => mem._id}
                 scrollEnabled={false}
-                renderItem={({ item: mem }) => <MemoryCard item={mem} />}
+                renderItem={({ item: mem }) => (
+                  <MemoryCard
+                    item={mem}
+                    pandalId={item._id}
+                    onImagePress={(memItem, isLiked, likesCount) => openFeaturedModal(memItem, isLiked, likesCount)}
+                  />
+                )}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={() => (
                   <View style={styles.emptyMemories}>
@@ -325,11 +400,11 @@ const PandalDetailsScreen = ({ route, navigation }) => {
       </Animated.ScrollView>
 
       {/* ── Share Memory Modal (Bottom Sheet style) ── */}
-      <Modal visible={isModalVisible} 
-      statusBarTranslucent={true}
-      transparent
-       animationType="none" 
-       onRequestClose={closeModal}>
+      <Modal visible={isModalVisible}
+        statusBarTranslucent={true}
+        transparent
+        animationType="none"
+        onRequestClose={closeModal}>
         <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={closeModal} />
         <Animated.View style={[styles.modalSheet, { transform: [{ translateY: modalSlide }] }]}>
           {/* Handle */}
@@ -397,6 +472,17 @@ const PandalDetailsScreen = ({ route, navigation }) => {
           </View>
         </Animated.View>
       </Modal>
+
+      {/* ── Featured Image Modal ── */}
+      <FeaturedImageModal
+        visible={featuredModalVisible}
+        item={selectedMemory}
+        pandalTitle={item.title}
+        liked={selectedMemoryLiked}
+        likesCount={selectedMemoryLikes}
+        onLike={handleModalLike}
+        onClose={closeFeaturedModal}
+      />
     </View>
   );
 };

@@ -43,15 +43,15 @@ const CARD_WIDTH = (width - 48) / 2;
 // };
 
 const COLORS = {
-  primary: "#FF4D6D",       
-  primaryLight: "#FFE4E8",  
-  accent: "#FF8FA3",        
-  accentSoft: "#FFC2D1",   
-  dark: "#1A1A2E",          
-  surface: "#FFF8F9",      
-  surfaceAlt: "#FFEFF3",     
-  text: "#2B2B2B",           
-  textMuted: "#8A7F88",    
+  primary: "#FF4D6D",
+  primaryLight: "#FFE4E8",
+  accent: "#FF8FA3",
+  accentSoft: "#FFC2D1",
+  dark: "#1A1A2E",
+  surface: "#FFF8F9",
+  surfaceAlt: "#FFEFF3",
+  text: "#2B2B2B",
+  textMuted: "#8A7F88",
   white: "#FFFFFF",
   cardBg: "#FFFFFF",
   shadow: "rgba(255, 77, 109, 0.18)",
@@ -182,7 +182,7 @@ const Home = ({ navigation }) => {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://192.168.0.9:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,
+        `http://10.30.75.63:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
@@ -236,7 +236,7 @@ const Home = ({ navigation }) => {
     (async () => {
       try {
         const token = await AsyncStorage.getItem('token');
-        const res = await axios.get(`http://192.168.0.9:3000/api/user/me`, {
+        const res = await axios.get(`http://10.30.75.63:3000/api/user/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(res.data.user);// Debug log for fetched user data
@@ -253,7 +253,7 @@ const Home = ({ navigation }) => {
       const token = await AsyncStorage.getItem("token");
 
       await axios.post(
-        "http://192.168.0.9:3000/api/user/update-fcm-token",
+        "http://10.30.75.63:3000/api/user/update-fcm-token",
         {
           userId: user._id,
           fcmToken,
@@ -283,35 +283,35 @@ const Home = ({ navigation }) => {
   };
 
   useEffect(() => {
-  const initApp = async () => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    const initApp = async () => {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const hasLocation = await requestLocationPermission();
-      if (hasLocation) {
-        await getLocation();
-      } else {
-        console.log("Location permission denied");
-      }
+        const hasLocation = await requestLocationPermission();
+        if (hasLocation) {
+          await getLocation();
+        } else {
+          console.log("Location permission denied");
+        }
 
-      const hasNotification = await requestNotificationPermission();
-      if (!hasNotification) {
-        console.log("Notification permission denied");
-        return;
+        const hasNotification = await requestNotificationPermission();
+        if (!hasNotification) {
+          console.log("Notification permission denied");
+          return;
+        }
+        if (user?._id) {
+          await getFCMToken();
+        }
+      } catch (error) {
+        console.error("Init error:", error);
       }
-      if (user?._id) {
-        await getFCMToken();
-      }
-    } catch (error) {
-      console.error("Init error:", error);
+    };
+
+    if (user?._id) {
+      initApp();
     }
-  };
 
-  if (user?._id) {
-    initApp();
-  }
-
-}, [user]);
+  }, [user]);
 
   useEffect(() => {
     if (location && token) fetchNearestPandleData();

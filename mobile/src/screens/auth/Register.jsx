@@ -18,18 +18,18 @@ import { useUserStore } from '../../store/userStore.js';
 import CustomModal from '../../components/CustomModal.jsx';
 
 const COLORS = {
-  primary: "#FF4D6D",        
-  primaryLight: "#FFE4E8",   
-  gold: "#FF8FA3",         
-  goldLight: "#FFC2D1",    
-  dark: "#1A1A2E",           
-  surface: "#FFF8F9",      
-  surfaceAlt: "#FFEFF3",    
-  text: "#2B2B2B",        
-  textMuted: "#8A7F88",      
+  primary: "#FF4D6D",
+  primaryLight: "#FFE4E8",
+  gold: "#FF8FA3",
+  goldLight: "#FFC2D1",
+  dark: "#1A1A2E",
+  surface: "#FFF8F9",
+  surfaceAlt: "#FFEFF3",
+  text: "#2B2B2B",
+  textMuted: "#8A7F88",
   white: "#FFFFFF",
-  cardBg: "#FFFFFF",       
-  shadow: "rgba(255, 77, 109, 0.18)", 
+  cardBg: "#FFFFFF",
+  shadow: "rgba(255, 77, 109, 0.18)",
 };
 
 const StepIndicator = ({ current, total }) => (
@@ -200,7 +200,7 @@ const Register = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const res = await fetch('http://192.168.0.9:3000/api/auth/signup', {
+      const res = await fetch('http://10.30.75.63:3000/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password }),
