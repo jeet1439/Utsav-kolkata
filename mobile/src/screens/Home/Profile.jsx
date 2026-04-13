@@ -23,13 +23,13 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import Modal from 'react-native-modal';
 import axios from 'axios';
 import chatIcon from '../../assets/chatIcon.png';
+import { BASE_URL } from '../../constants/api.js';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COLS = 3;
 const GAP = 1.5;
 const TILE = (SCREEN_WIDTH - GAP * (COLS - 1)) / COLS;
 
-const BASE_URL = 'http://10.30.75.63:3000';
 const C = {
   bg: '#FFFFFF',
   surface: '#FAFAFA',

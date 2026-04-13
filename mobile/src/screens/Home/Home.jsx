@@ -20,6 +20,7 @@ import { LeafletView } from 'react-native-leaflet-view';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import messaging from '@react-native-firebase/messaging';
 import axios from 'axios';
+import { buildApiUrl } from '../../constants/api.js';
 
 
 
@@ -182,7 +183,7 @@ const Home = ({ navigation }) => {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://10.30.75.63:3000/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`,
+        buildApiUrl(`/api/pandals/nearest?latitude=${location.latitude}&longitude=${location.longitude}`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
@@ -236,7 +237,7 @@ const Home = ({ navigation }) => {
     (async () => {
       try {
         const token = await AsyncStorage.getItem('token');
-        const res = await axios.get(`http://10.30.75.63:3000/api/user/me`, {
+        const res = await axios.get(buildApiUrl('/api/user/me'), {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(res.data.user);// Debug log for fetched user data
@@ -253,7 +254,7 @@ const Home = ({ navigation }) => {
       const token = await AsyncStorage.getItem("token");
 
       await axios.post(
-        "http://10.30.75.63:3000/api/user/update-fcm-token",
+        buildApiUrl('/api/user/update-fcm-token'),
         {
           userId: user._id,
           fcmToken,
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
   // Map
   mapSection: {
     flex: 1.1,
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#7ddaff',
     overflow: 'hidden',
   },
   mapPlaceholder: {

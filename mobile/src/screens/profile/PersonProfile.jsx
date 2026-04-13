@@ -8,12 +8,16 @@ import {
   StatusBar,
   Animated,
   Dimensions,
+  Alert,
 } from "react-native";
 import React, { useEffect, useState, useRef } from "react";
 import { useRoute } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Modal from "react-native-modal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { useNavigation } from "@react-navigation/native";
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PADDING = 20;
@@ -70,19 +74,20 @@ const PersonProfile = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
   const followScale = useRef(new Animated.Value(1)).current;
+  const navigation = useNavigation();
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
         console.log(token)
-        const res = await fetch(`http://10.30.75.63:3000/api/user/getuser/${userId}`);
+        const res = await fetch(`https://utsavkolkata-backend.onrender.com/api/user/getuser/${userId}`);
         const data = await res.json();
         setUser(data);
         setFollowerCount(data?.followers.length);
         setFollowingCount(data?.followings.length);
         const followRes = await fetch(
-          `http://10.30.75.63:3000/api/user/is-following/${userId}`,
+          `https://utsavkolkata-backend.onrender.com/api/user/is-following/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -126,7 +131,7 @@ const PersonProfile = () => {
       const token = await AsyncStorage.getItem("token");
 
       const res = await fetch(
-        `http://10.30.75.63:3000/api/user/${endpoint}/${userId}`,
+        `https://utsavkolkata-backend.onrender.com/api/user/${endpoint}/${userId}`,
         {
           method: "POST",
           headers: {
@@ -151,6 +156,24 @@ const PersonProfile = () => {
     }
   };
 
+  const handleMessage = async (user) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const res = await axios.post(`https://utsavkolkata-backend.onrender.com/api/chat/room`,
+        { otherUserId: user._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      navigation.navigate('ChatRoom', {
+        chatRoomId: res.data._id,
+        chatName: user.name,
+        otherUserId: user._id,
+        otherAvatar: user.avatar,
+      });
+    } catch (error) {
+      console.log('Error creating chat room:', error);
+      Alert.alert('Error', 'Could not open chat. Please try again.');
+    }
+  };
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#FAFAF8" />
@@ -213,6 +236,7 @@ const PersonProfile = () => {
               <TouchableOpacity
                 style={[styles.actionBtn, styles.messageBtn]}
                 activeOpacity={0.82}
+                onPress={() => handleMessage(user)}
               >
                 <Text style={[styles.actionBtnText, styles.messageBtnText]}>Message</Text>
               </TouchableOpacity>

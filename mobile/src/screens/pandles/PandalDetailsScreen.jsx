@@ -24,6 +24,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MemoryCard from "../../components/memoryCard";
 import FeaturedImageModal from "../../components/FeaturedImageModal";
+import { buildApiUrl } from "../../constants/api";
 
 const { width, height } = Dimensions.get("window");
 const HERO_HEIGHT = 300;
@@ -90,7 +91,7 @@ const PandalDetailsScreen = ({ route, navigation }) => {
       try {
         setLoading(true);
         const token = await AsyncStorage.getItem("token");
-        const res = await fetch(`http://10.30.75.63:3000/api/pandals/${item._id}`, {
+        const res = await fetch(buildApiUrl(`/api/pandals/${item._id}`), {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -178,7 +179,7 @@ const PandalDetailsScreen = ({ route, navigation }) => {
       formData.append("caption", caption);
 
       const res = await axios.post(
-        `http://10.30.75.63:3000/api/pandals/${item._id}/featured-image`,
+        buildApiUrl(`/api/pandals/${item._id}/featured-image`),
         formData,
         {
           headers: {
@@ -234,7 +235,7 @@ const PandalDetailsScreen = ({ route, navigation }) => {
     try {
       const token = await AsyncStorage.getItem("token");
       const res = await axios.post(
-        `http://10.30.75.63:3000/api/pandals/${item._id}/featured/${selectedMemory._id}/like`,
+        buildApiUrl(`/api/pandals/${item._id}/featured/${selectedMemory._id}/like`),
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '../../store/userStore.js';
 import CustomModal from '../../components/CustomModal.jsx';
+import { buildApiUrl } from '../../constants/api.js';
 
 const COLORS = {
   primary: "#FF4D6D",
@@ -200,7 +201,7 @@ const Register = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const res = await fetch('http://10.30.75.63:3000/api/auth/signup', {
+      const res = await fetch(buildApiUrl('/api/auth/signup'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password }),

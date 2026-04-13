@@ -7,6 +7,7 @@ import pandleRoutes from './routes/pandal.route.js';
 import userRoutes from './routes/user.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import notificationRoutes from './routes/notification.route.js';
+import feedRoutes from './routes/feed.routes.js';
 import redis from '../src/redis/redis.js';
 import { Server } from "socket.io";
 import http from "http";
@@ -31,7 +32,7 @@ app.use('/api/pandals', pandleRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notification', notificationRoutes);
-
+app.use('/api/feed', feedRoutes);
 
 
 mongoose.connect(process.env.MONGO_URI)

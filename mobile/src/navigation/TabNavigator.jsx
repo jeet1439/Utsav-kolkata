@@ -6,7 +6,8 @@ import Home from "../screens/Home/Home.jsx";
 import Profile from "../screens/Home/Profile.jsx";
 import Settings from "../screens/Home/Settings.jsx";
 import FindPartners from "../screens/Home/FindPartners.jsx";
-import ChatsScreen from "../screens/chat/ChatsScreen.jsx";
+import FeedScreen from "../screens/feed/FeedScreen.jsx";
+
 import Ionicons from "react-native-vector-icons/Ionicons";
 
 const Tab = createBottomTabNavigator();
@@ -22,7 +23,7 @@ const COLORS = {
 const TABS = [
   { name: "Home",         icon: "home",          iconOutline: "home-outline",          label: "Explore"  },
   { name: "FindPartners", icon: "people",         iconOutline: "people-outline",        label: "Connect"  },
-  { name: "Chats",        icon: "chatbubbles",   iconOutline: "chatbubbles-outline",   label: "Chats"    },
+  { name: "Feed",         icon: "images",        iconOutline: "images-outline",         label: "Feed"     },
   { name: "Profile",      icon: "person",         iconOutline: "person-outline",        label: "Profile"  },
   { name: "Settings",     icon: "settings",       iconOutline: "settings-outline",      label: "Settings" },
 ];
@@ -94,7 +95,7 @@ export default function TabNavigator() {
     >
       <Tab.Screen name="Home" component={Home} />
       <Tab.Screen name="FindPartners" component={FindPartners} />
-      <Tab.Screen name="Chats" component={ChatsScreen} />
+      <Tab.Screen name="Feed" component={FeedScreen} />
       <Tab.Screen name="Profile" component={Profile} />
       <Tab.Screen name="Settings" component={Settings} />
     </Tab.Navigator>

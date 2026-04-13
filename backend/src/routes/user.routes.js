@@ -239,44 +239,6 @@ router.post("/update-location", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// router.post("/nearby-online", async (req, res) => {
-//   try {
-//     const { userId, latitude, longitude } = req.body;
-
-//     const nearbyUsers = await User.find({
-//       _id: { $ne: userId },
-//       location: {
-//         $near: {
-//           $geometry: {
-//             type: "Point",
-//             coordinates: [longitude, latitude],
-//           },
-//           $maxDistance: 5000,
-//         },
-//       },
-//     }).limit(50);
-
-//     const usersWithOnline = await Promise.all(
-//       nearbyUsers.map(async (user) => {
-//         const isOnline = await redis.get(`online:${user._id}`);
-//         console.log(isOnline)
-//         return {
-//           _id: user._id,
-//           name: user.username,
-//           avatar: user.profileImage[0],
-//           isOnline: isOnline === "true",
-//           bio: user.bio,
-//           distance: 1, 
-//         };
-//       })
-//     );
-
-//     res.json(usersWithOnline);
-//   } catch (error) {
-//     console.error("Nearby error:", error);
-//     res.status(500).json({ error: error.message });
-//   }
-// });
 
 router.post("/nearby-online", async (req, res) => {
   try {
@@ -290,7 +252,7 @@ router.post("/nearby-online", async (req, res) => {
             coordinates: [longitude, latitude],
           },
           distanceField: "distance", 
-          maxDistance: 5000,
+          maxDistance: 25000,
           spherical: true,
           query: {
             _id: { $ne: new mongoose.Types.ObjectId(userId) },

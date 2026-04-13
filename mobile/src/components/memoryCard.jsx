@@ -12,6 +12,7 @@ import moment from "moment";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import { buildApiUrl } from "../constants/api";
 
 const MemoryCard = ({ item, pandalId, onImagePress }) => {
   const [liked, setLiked] = useState(item.isLiked || false);
@@ -68,7 +69,7 @@ const MemoryCard = ({ item, pandalId, onImagePress }) => {
     try {
       const token = await AsyncStorage.getItem("token");
       const res = await axios.post(
-        `http://10.30.75.63:3000/api/pandals/${pandalId}/featured/${item._id}/like`,
+        buildApiUrl(`/api/pandals/${pandalId}/featured/${item._id}/like`),
         {},
         {
           headers: { Authorization: `Bearer ${token}` },

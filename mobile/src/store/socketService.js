@@ -1,6 +1,5 @@
 import { io } from "socket.io-client";
-
-const SERVER_URL = "http://10.30.75.63:3000";
+import { BASE_URL as SERVER_URL } from "../constants/api";
 
 const socket = io(SERVER_URL, {
   transports: ["websocket"],

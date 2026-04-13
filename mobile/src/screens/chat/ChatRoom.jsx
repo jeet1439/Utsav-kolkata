@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  StatusBar,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -234,6 +235,7 @@ const ChatRoom = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+     <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

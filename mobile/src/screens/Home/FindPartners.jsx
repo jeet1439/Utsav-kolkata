@@ -18,24 +18,24 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Geolocation from "react-native-geolocation-service";
 import axios from "axios";
-import socket, { SERVER_URL } from '../../store/socketService';
+import socket, { SERVER_URL } from "../../store/socketService";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const C = {
-  bg: "#FFF8F9",         
+  bg: "#FFF8F9",
   white: "#FFFFFF",
   card: "#FFFFFF",
-  primary: "#FF4D6D",  
+  primary: "#FF4D6D",
   primaryLight: "#FFE4E8",
-  primaryText: "#E11D48",  
-  avatarBg: "#FFEFF3", 
-  online: "#22C55E",   
-  offline: "#E2E8F0",       
-  textDark: "#2B2B2B",     
-  textMuted: "#8A7F88",     
-  textLight: "#B9AEB5",   
-  btnSecondary: "#FFEFF3", 
-  border: "#FFE4E8",       
+  primaryText: "#E11D48",
+  avatarBg: "#FFEFF3",
+  online: "#22C55E",
+  offline: "#E2E8F0",
+  textDark: "#2B2B2B",
+  textMuted: "#8A7F88",
+  textLight: "#B9AEB5",
+  btnSecondary: "#FFEFF3",
+  border: "#FFE4E8",
 };
 
 const formatDistance = (dist) => {
@@ -44,30 +44,53 @@ const formatDistance = (dist) => {
   return `${dist.toFixed(1)}km away`;
 };
 
-const fallbackBios = [
-  "Exploring the local coffee scene! ☕ Always down for a chat about design.",
-  "New in town! Looking for hiking buddies for the weekend. ⛰️",
-  "Digital artist & dog lover. ?",
-];
-
 const OnlineToggle = ({ isOnline, onToggle }) => {
   const anim = useRef(new Animated.Value(isOnline ? 1 : 0)).current;
   useEffect(() => {
-    Animated.spring(anim, { toValue: isOnline ? 1 : 0, useNativeDriver: false, tension: 80, friction: 10 }).start();
+    Animated.spring(anim, {
+      toValue: isOnline ? 1 : 0,
+      useNativeDriver: false,
+      tension: 80,
+      friction: 10,
+    }).start();
   }, [isOnline]);
 
-  const translateX = anim.interpolate({ inputRange: [0, 1], outputRange: [3, 23] });
-  const trackBg = anim.interpolate({ inputRange: [0, 1], outputRange: ["#E2E8F0", "#DCFCE7"] });
-  const trackBdr = anim.interpolate({ inputRange: [0, 1], outputRange: [C.offline, C.online] });
-  const thumbBg = anim.interpolate({ inputRange: [0, 1], outputRange: [C.offline, C.online] });
+  const translateX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [3, 23],
+  });
+  const trackBg = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["#E2E8F0", "#DCFCE7"],
+  });
+  const trackBdr = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [C.offline, C.online],
+  });
+  const thumbBg = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [C.offline, C.online],
+  });
 
   return (
     <TouchableOpacity onPress={onToggle} activeOpacity={0.85}>
       <View style={togS.row}>
-        <Animated.View style={[togS.track, { backgroundColor: trackBg, borderColor: trackBdr }]}>
-          <Animated.View style={[togS.thumb, { transform: [{ translateX }], backgroundColor: thumbBg }]} />
+        <Animated.View
+          style={[
+            togS.track,
+            { backgroundColor: trackBg, borderColor: trackBdr },
+          ]}
+        >
+          <Animated.View
+            style={[
+              togS.thumb,
+              { transform: [{ translateX }], backgroundColor: thumbBg },
+            ]}
+          />
         </Animated.View>
-        <Text style={[togS.label, { color: isOnline ? C.online : C.textLight }]}>
+        <Text
+          style={[togS.label, { color: isOnline ? C.online : C.textLight }]}
+        >
           {isOnline ? "Online" : "Offline"}
         </Text>
       </View>
@@ -77,7 +100,13 @@ const OnlineToggle = ({ isOnline, onToggle }) => {
 
 const togS = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
-  track: { width: 44, height: 24, borderRadius: 12, borderWidth: 1.5, justifyContent: "center" },
+  track: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    justifyContent: "center",
+  },
   thumb: { width: 14, height: 14, borderRadius: 7 },
   label: { fontSize: 12, fontWeight: "600" },
 });
@@ -85,62 +114,96 @@ const togS = StyleSheet.create({
 const PartnerCard = ({ item, index, onConnect, onMessage, navigation }) => {
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
-  const bio = item.bio || fallbackBios[index % fallbackBios.length];
+  const bio = item.bio;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fade, { toValue: 1, duration: 400, delay: index * 50, useNativeDriver: true }),
-      Animated.spring(slide, { toValue: 0, delay: index * 50, tension: 60, friction: 10, useNativeDriver: true }),
+      Animated.timing(fade, {
+        toValue: 1,
+        duration: 400,
+        delay: index * 50,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slide, {
+        toValue: 0,
+        delay: index * 50,
+        tension: 60,
+        friction: 10,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, []);
 
   return (
-    <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
-    <TouchableOpacity
-      activeOpacity={0.95}
-      onPress={() => navigation.navigate("PersonProfile", { userId: item._id })}
+    <Animated.View
+      style={{ opacity: fade, transform: [{ translateY: slide }] }}
     >
-      <View style={cardS.card}>
-        <View style={cardS.topRow}>
-          <View style={cardS.avatarWrap}>
-            {item.avatar ? (
-              <Image
-                resizeMode="cover"
-                source={{ uri: item.avatar }} style={cardS.avatar} />
-            ) : (
-              <View style={[cardS.avatar, cardS.avatarFallback]}>
-                <Text style={cardS.initial}>{item.name?.charAt(0).toUpperCase()}</Text>
-              </View>
-            )}
-            <View style={[cardS.statusDot, { backgroundColor: item.isOnline ? C.online : C.offline }]} />
-          </View>
-
-          {/* User Info */}
-          <View style={cardS.infoWrap}>
-            <View style={cardS.nameRow}>
-              <Text style={cardS.name} numberOfLines={1}>{item.name}</Text>
-              <Text style={cardS.dist}>{formatDistance(item.distance)}</Text>
+      <TouchableOpacity
+        activeOpacity={0.95}
+        onPress={() => navigation.navigate("PersonProfile", { userId: item._id })}
+      >
+        <View style={cardS.card}>
+          <View style={cardS.topRow}>
+            <View style={cardS.avatarWrap}>
+              {item.avatar ? (
+                <Image
+                  resizeMode="cover"
+                  source={{ uri: item.avatar }}
+                  style={cardS.avatar}
+                />
+              ) : (
+                <View style={[cardS.avatar, cardS.avatarFallback]}>
+                  <Text style={cardS.initial}>
+                    {item.name?.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View
+                style={[
+                  cardS.statusDot,
+                  { backgroundColor: item.isOnline ? C.online : C.offline },
+                ]}
+              />
             </View>
-            <Text style={cardS.bio} numberOfLines={2}>"{bio}"</Text>
+
+            {/* User Info */}
+            <View style={cardS.infoWrap}>
+              <View style={cardS.nameRow}>
+                <Text style={cardS.name} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={cardS.dist}>{formatDistance(item.distance)}</Text>
+              </View>
+              <Text style={cardS.bio} numberOfLines={2}>
+                "{bio}"
+              </Text>
+            </View>
+          </View>
+
+          {/* Bottom Section: Actions */}
+          <View style={cardS.actionRow}>
+            <TouchableOpacity
+              style={cardS.msgBtn}
+              activeOpacity={0.8}
+              onPress={() => onMessage(item)}
+            >
+              <Ionicons
+                name="chatbox-ellipses-outline"
+                size={18}
+                color={C.white}
+              />
+              <Text style={cardS.msgText}>Message</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={cardS.addBtn}
+              activeOpacity={0.7}
+              onPress={() => onConnect(item)}
+            >
+              <Ionicons name="person-add-outline" size={18} color="#334155" />
+            </TouchableOpacity>
           </View>
         </View>
-
-        {/* Bottom Section: Actions */}
-        <View style={cardS.actionRow}>
-          <TouchableOpacity style={cardS.msgBtn} activeOpacity={0.8} onPress={() => onMessage(item)}>
-            <Ionicons name="chatbox-ellipses-outline" size={18} color={C.white} />
-            <Text style={cardS.msgText}>Message</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={cardS.addBtn}
-            activeOpacity={0.7}
-            onPress={() => onConnect(item)}
-          >
-            <Ionicons name="person-add-outline" size={18} color="#334155" />
-          </TouchableOpacity>
-        </View>
-      </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -250,7 +313,7 @@ const cardS = StyleSheet.create({
 });
 
 // ── Main Screen ────────────────────────────────────────────────────
-const FindPartners = ( { navigation }) => {
+const FindPartners = ({ navigation }) => {
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [location, setLocation] = useState(null);
@@ -259,11 +322,11 @@ const FindPartners = ( { navigation }) => {
   const spinVal = useRef(new Animated.Value(0)).current;
   const locationIntervalRef = useRef(null);
 
-
   useEffect(() => {
     init();
   }, []);
 
+  // Handle online/offline status changes and location updates in ery 5 minutes when online
   useEffect(() => {
     if (isOnline) {
       // Update location immediately when coming online
@@ -275,12 +338,12 @@ const FindPartners = ( { navigation }) => {
             const coords = position.coords;
             setLocation(coords);
             await updateLocation(coords);
-            // console.log("loation refreshed")
+            // console.log("location refreshed");
           },
           (error) => console.log("Interval location error:", error.message),
           { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
         );
-      }, 3 * 60 * 1000);
+      }, 300000);
     } else {
       if (locationIntervalRef.current) {
         clearInterval(locationIntervalRef.current);
@@ -295,7 +358,6 @@ const FindPartners = ( { navigation }) => {
       }
     };
   }, [isOnline]);
-
 
   const init = async () => {
     const userId = await AsyncStorage.getItem("userId");
@@ -324,16 +386,22 @@ const FindPartners = ( { navigation }) => {
         (error) => Alert.alert("Location Error", error.message),
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
       );
-    } catch (err) { console.log(err); }
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   const updateLocation = async (coords) => {
     try {
       const userId = await AsyncStorage.getItem("userId");
       await axios.post(`${SERVER_URL}/api/user/update-location`, {
-        userId, latitude: coords.latitude, longitude: coords.longitude,
+        userId,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
       });
-    } catch (e) { console.log(e); }
+    } catch (e) {
+      console.log(e);
+    }
   };
 
   const fetchPartners = async (coords) => {
@@ -341,72 +409,97 @@ const FindPartners = ( { navigation }) => {
       setLoading(true);
       const userId = await AsyncStorage.getItem("userId");
       const res = await axios.post(`${SERVER_URL}/api/user/nearby-online`, {
-        userId, latitude: coords.latitude, longitude: coords.longitude,
+        userId,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
       });
-      // demo purposes 
-      setPartners(res.data.length ? res.data : [
-        { _id: '1', name: 'Sarah Jenkins', distance: 0.5, isOnline: true },
-        { _id: '2', name: 'Marcus Chen', distance: 1.2, isOnline: false },
-        { _id: '3', name: 'Elena Rodriguez', distance: 0.8, isOnline: true }
-      ]);
-    } catch (e) { console.log(e); }
-    finally { setLoading(false); }
+      // demo purposes
+      setPartners(res.data);
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRefresh = () => {
     if (!location) return;
     spinVal.setValue(0);
-    Animated.timing(spinVal, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+    Animated.timing(spinVal, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
     fetchPartners(location);
   };
 
-
   const handleToggleOnline = async () => {
-
     const userId = await AsyncStorage.getItem("userId");
-
     if (!userId) return;
 
-    const next = !isOnline;
-
-    setIsOnline(next);
-
-    if (next) {
-      socket.emit("userOnline", userId);
+    if (isOnline) {
+      Alert.alert(
+        "Go Offline?",
+        "If you save your status as offline you will not be visible to others.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Go Offline",
+            style: "destructive",
+            onPress: () => {
+              setIsOnline(false);
+              socket.emit("userOffline", userId);
+            },
+          },
+        ]
+      );
     } else {
-      socket.emit("userOffline", userId);
+      // User wants to go online - Do it immediately
+      setIsOnline(true);
+      socket.emit("userOnline", userId);
     }
-
   };
 
   const handleConnect = (user) => {
-    Alert.alert("Request Sent", `Connection request sent to ${user.name}`, [{ text: "Great!" }]);
+    Alert.alert(
+      "Request Sent",
+      `Connection request sent to ${user.name}`,
+      [{ text: "Great!" }]
+    );
   };
 
   const handleMessage = async (user) => {
     try {
-      const token = await AsyncStorage.getItem('token');
-      const res = await axios.post(`${SERVER_URL}/api/chat/room`, 
+      const token = await AsyncStorage.getItem("token");
+      const res = await axios.post(
+        `${SERVER_URL}/api/chat/room`,
         { otherUserId: user._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      navigation.navigate('ChatRoom', {
+      navigation.navigate("ChatRoom", {
         chatRoomId: res.data._id,
         chatName: user.name,
         otherUserId: user._id,
         otherAvatar: user.avatar,
       });
     } catch (error) {
-      console.log('Error creating chat room:', error);
-      Alert.alert('Error', 'Could not open chat. Please try again.');
+      console.log("Error creating chat room:", error);
+      Alert.alert("Error", "Could not open chat. Please try again.");
     }
   };
 
-  const spin = spinVal.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const spin = spinVal.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
 
   return (
     <SafeAreaView style={S.root}>
-       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <StatusBar
+        barStyle="dark-content"
+        translucent
+        backgroundColor="transparent"
+      />
       <View style={S.utilityBar}>
         <Text style={S.sectionHeader}>Nearby People</Text>
         <TouchableOpacity style={S.refreshBtn} onPress={handleRefresh}>
@@ -434,10 +527,28 @@ const FindPartners = ( { navigation }) => {
         <FlatList
           data={partners}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={S.list}
+          contentContainerStyle={
+            partners.length === 0 ? [S.list, { flex: 1 }] : S.list
+          }
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={() => (
+            <View style={S.emptyStateWrap}>
+              <Ionicons name="people-outline" size={50} color={C.textLight} />
+              <Text style={S.emptyStateTitle}>No one is nearby</Text>
+              <Text style={S.emptyStateSub}>
+                There are no users online in your area right now. Try refreshing
+                or check back later!
+              </Text>
+            </View>
+          )}
           renderItem={({ item, index }) => (
-            <PartnerCard item={item} index={index} onConnect={handleConnect} onMessage={handleMessage} navigation={navigation} />
+            <PartnerCard
+              item={item}
+              index={index}
+              onConnect={handleConnect}
+              onMessage={handleMessage}
+              navigation={navigation}
+            />
           )}
         />
       )}
@@ -449,7 +560,6 @@ const S = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: C.bg,
-    // paddingTop: Platform.OS === "android" ? StatusBar.currentHeight + 10 : 50,
   },
   utilityBar: {
     flexDirection: "row",
@@ -513,6 +623,26 @@ const S = StyleSheet.create({
     fontSize: 14,
     color: C.textMuted,
     fontWeight: "500",
+  },
+  emptyStateWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 60,
+    gap: 12,
+  },
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: C.textDark,
+    marginTop: 8,
+  },
+  emptyStateSub: {
+    fontSize: 14,
+    color: C.textMuted,
+    textAlign: "center",
+    paddingHorizontal: 40,
+    lineHeight: 22,
   },
 });
 
