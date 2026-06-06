@@ -3,7 +3,6 @@ import {
   Text,
   Image,
   Dimensions,
-  ScrollView,
   TouchableOpacity,
   Linking,
   Modal,
@@ -15,6 +14,7 @@ import {
   ActivityIndicator,
   StatusBar,
   Animated,
+  Alert,
 } from "react-native";
 import Swiper from "react-native-swiper";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -22,12 +22,31 @@ import { useEffect, useState, useRef } from "react";
 import { launchImageLibrary } from "react-native-image-picker";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { jwtDecode } from "jwt-decode";
 import MemoryCard from "../../components/memoryCard";
-import FeaturedImageModal from "../../components/FeaturedImageModal";
 import { buildApiUrl } from "../../constants/api";
 
 const { width, height } = Dimensions.get("window");
 const HERO_HEIGHT = 300;
+
+const getMemoryOwnerId = (memory) => {
+  const owner = memory?.userId;
+  if (!owner) return null;
+  if (typeof owner === "string") return owner;
+  return owner._id || owner.id || null;
+};
+
+const getTokenUserId = (token) => {
+  if (!token) return null;
+
+  try {
+    const decoded = jwtDecode(token);
+    return decoded?.userId || decoded?.id || decoded?._id || null;
+  } catch (error) {
+    console.warn("Could not decode user token:", error);
+    return null;
+  }
+};
 
 // ─── Color Palette (matches Home.js) ─────────────────────────────────────────
 const COLORS = {
@@ -71,11 +90,8 @@ const PandalDetailsScreen = ({ route, navigation }) => {
   const [caption, setCaption] = useState("");
   const [memories, setMemories] = useState([]);
 
-  // Featured Image Modal state
-  const [featuredModalVisible, setFeaturedModalVisible] = useState(false);
-  const [selectedMemory, setSelectedMemory] = useState(null);
-  const [selectedMemoryLiked, setSelectedMemoryLiked] = useState(false);
-  const [selectedMemoryLikes, setSelectedMemoryLikes] = useState(0);
+  const [deletingMemoryId, setDeletingMemoryId] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const modalSlide = useRef(new Animated.Value(height)).current;
@@ -91,6 +107,9 @@ const PandalDetailsScreen = ({ route, navigation }) => {
       try {
         setLoading(true);
         const token = await AsyncStorage.getItem("token");
+        const tokenUserId = getTokenUserId(token);
+        if (tokenUserId) setCurrentUserId(String(tokenUserId));
+
         const res = await fetch(buildApiUrl(`/api/pandals/${item._id}`), {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -98,6 +117,7 @@ const PandalDetailsScreen = ({ route, navigation }) => {
         const pandalMemories = data.featuredPictures.map((pic) => ({
           ...pic,
           pandalTitle: data.title,
+          isOwner: pic.isOwner || String(getMemoryOwnerId(pic)) === String(tokenUserId),
         }));
         setMemories(pandalMemories);
       } catch (err) {
@@ -193,6 +213,10 @@ const PandalDetailsScreen = ({ route, navigation }) => {
       const newMemory = {
         ...updatedPandal.featuredPictures[0],
         pandalTitle: updatedPandal.title,
+        likesCount: 0,
+        commentsCount: 0,
+        isLiked: false,
+        isOwner: true,
       };
       setMemories((prev) => [newMemory, ...prev]);
       closeModal();
@@ -204,62 +228,24 @@ const PandalDetailsScreen = ({ route, navigation }) => {
     }
   };
 
-  // ── Featured Image Modal handlers ──
-  const openFeaturedModal = (mem, isLiked, likesCount) => {
-    setSelectedMemory(mem);
-    setSelectedMemoryLiked(isLiked);
-    setSelectedMemoryLikes(likesCount);
-    setFeaturedModalVisible(true);
-  };
-
-  const closeFeaturedModal = () => {
-    setFeaturedModalVisible(false);
-    setSelectedMemory(null);
-  };
-
-  const handleModalLike = async () => {
-    if (!selectedMemory) return;
-    const newLiked = !selectedMemoryLiked;
-    setSelectedMemoryLiked(newLiked);
-    setSelectedMemoryLikes((prev) => (newLiked ? prev + 1 : prev - 1));
-
-    // Also update the memory in the list
-    setMemories((prev) =>
-      prev.map((m) =>
-        m._id === selectedMemory._id
-          ? { ...m, isLiked: newLiked, likesCount: newLiked ? (m.likesCount || 0) + 1 : Math.max((m.likesCount || 0) - 1, 0) }
-          : m
-      )
-    );
+  const handleDeleteMemory = async (memory) => {
+    if (!memory?._id || deletingMemoryId) return;
 
     try {
+      setDeletingMemoryId(memory._id);
       const token = await AsyncStorage.getItem("token");
-      const res = await axios.post(
-        buildApiUrl(`/api/pandals/${item._id}/featured/${selectedMemory._id}/like`),
-        {},
+
+      await axios.delete(
+        buildApiUrl(`/api/pandals/${item._id}/featured/${memory._id}`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setSelectedMemoryLiked(res.data.liked);
-      setSelectedMemoryLikes(res.data.likesCount);
-      setMemories((prev) =>
-        prev.map((m) =>
-          m._id === selectedMemory._id
-            ? { ...m, isLiked: res.data.liked, likesCount: res.data.likesCount }
-            : m
-        )
-      );
+
+      setMemories((prev) => prev.filter((m) => m._id !== memory._id));
     } catch (error) {
-      console.error("Modal like failed:", error);
-      // Revert
-      setSelectedMemoryLiked(!newLiked);
-      setSelectedMemoryLikes((prev) => (newLiked ? prev - 1 : prev + 1));
-      setMemories((prev) =>
-        prev.map((m) =>
-          m._id === selectedMemory._id
-            ? { ...m, isLiked: !newLiked, likesCount: newLiked ? Math.max((m.likesCount || 0) - 1, 0) : (m.likesCount || 0) + 1 }
-            : m
-        )
-      );
+      console.error("Delete memory failed:", error);
+      Alert.alert("Could not delete memory", "Please try again.");
+    } finally {
+      setDeletingMemoryId(null);
     }
   };
 
@@ -379,7 +365,9 @@ const PandalDetailsScreen = ({ route, navigation }) => {
                   <MemoryCard
                     item={mem}
                     pandalId={item._id}
-                    onImagePress={(memItem, isLiked, likesCount) => openFeaturedModal(memItem, isLiked, likesCount)}
+                    onDelete={handleDeleteMemory}
+                    deleting={deletingMemoryId === mem._id}
+                    currentUserId={currentUserId}
                   />
                 )}
                 showsVerticalScrollIndicator={false}
@@ -473,17 +461,6 @@ const PandalDetailsScreen = ({ route, navigation }) => {
           </View>
         </Animated.View>
       </Modal>
-
-      {/* ── Featured Image Modal ── */}
-      <FeaturedImageModal
-        visible={featuredModalVisible}
-        item={selectedMemory}
-        pandalTitle={item.title}
-        liked={selectedMemoryLiked}
-        likesCount={selectedMemoryLikes}
-        onLike={handleModalLike}
-        onClose={closeFeaturedModal}
-      />
     </View>
   );
 };

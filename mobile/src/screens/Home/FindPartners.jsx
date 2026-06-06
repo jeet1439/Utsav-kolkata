@@ -38,10 +38,10 @@ const C = {
   border: "#FFE4E8",
 };
 
-const formatDistance = (dist) => {
+const formatDistance = (dist=1) => {
   if (dist === undefined || dist === null) return "Unknown";
   if (dist < 1) return `${Math.round(dist * 1000)}m away`;
-  return `${dist.toFixed(1)}km away`;
+  return `${dist}km away`;
 };
 
 const OnlineToggle = ({ isOnline, onToggle }) => {

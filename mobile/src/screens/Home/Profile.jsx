@@ -459,7 +459,7 @@ const Profile = ({ navigation }) => {
 
       {/* Image Preview Modal */}
       <Modal
-        statusBarTranslucent={true}
+        
         isVisible={!!previewUri}
         onBackdropPress={() => setPreviewUri(null)}
         style={{ margin: 0, justifyContent: 'center', alignItems: 'center' }}

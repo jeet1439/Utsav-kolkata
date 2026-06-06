@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
     View,
     FlatList,
@@ -6,44 +6,55 @@ import {
     StyleSheet,
     RefreshControl,
     Text,
-    Image,
     TouchableOpacity,
-    Dimensions
+    Alert,
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Ionicons from "react-native-vector-icons/Ionicons"; // Using only Ionicons now
-import { buildApiUrl } from "../../constants/api";
+import Ionicons from "react-native-vector-icons/Ionicons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { jwtDecode } from "jwt-decode";
+import MemoryCard from "../../components/memoryCard";
+import { buildApiUrl } from "../../constants/api";
 
 const PAGE_SIZE = 5;
-const FALLBACK_AVATAR = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-const { width } = Dimensions.get("window");
+
+const getTokenUserId = (token) => {
+    if (!token) return null;
+
+    try {
+        const decoded = jwtDecode(token);
+        return decoded?.userId || decoded?.id || decoded?._id || null;
+    } catch (error) {
+        console.warn("Could not decode user token:", error);
+        return null;
+    }
+};
 
 const FeedScreen = () => {
-    const navigation = useNavigation();
     const [feed, setFeed] = useState([]);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [hasMore, setHasMore] = useState(true);
-    const [likingId, setLikingId] = useState(null);
+    const [currentUserId, setCurrentUserId] = useState(null);
+    const [deletingMemoryId, setDeletingMemoryId] = useState(null);
 
-    const fetchFeed = async (pageNumber = 1, isRefresh = false) => {
-        if (loading) return;
-
+    const fetchFeed = useCallback(async (pageNumber = 1, isRefresh = false) => {
         try {
             setLoading(true);
             const token = await AsyncStorage.getItem("token");
-            const res = await axios.get(buildApiUrl(`/api/feed?page=${pageNumber}&limit=${PAGE_SIZE}`),
+            const tokenUserId = getTokenUserId(token);
+            if (tokenUserId) setCurrentUserId(String(tokenUserId));
+
+            const res = await axios.get(
+                buildApiUrl(`/api/feed?page=${pageNumber}&limit=${PAGE_SIZE}`),
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            // Injecting a stable random view count
-            const newData = (res.data.data || []).map(item => ({
+            const newData = (res.data.data || []).map((item) => ({
                 ...item,
-                viewsCount: item.viewsCount || Math.floor(Math.random() * 15000) + 120
+                isOwner: item.isOwner || String(item.userId) === String(tokenUserId),
             }));
 
             if (isRefresh) {
@@ -59,11 +70,11 @@ const FeedScreen = () => {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchFeed(1, true);
-    }, []);
+    }, [fetchFeed]);
 
     const handleLoadMore = () => {
         if (!loading && hasMore) {
@@ -80,138 +91,36 @@ const FeedScreen = () => {
         fetchFeed(1, true);
     };
 
-    const handleToggleLike = async (item) => {
-        if (likingId === item._id) return;
-
-        const previousLiked = !!item.isLiked;
-        const previousCount = item.likesCount ?? item.likes?.length ?? 0;
-        const optimisticLiked = !previousLiked;
-        const optimisticCount = optimisticLiked
-            ? previousCount + 1
-            : Math.max(previousCount - 1, 0);
-
-        setLikingId(item._id);
-        setFeed((prev) =>
-            prev.map((post) =>
-                post._id === item._id
-                    ? { ...post, isLiked: optimisticLiked, likesCount: optimisticCount }
-                    : post
-            )
-        );
+    const handleDeleteMemory = async (item) => {
+        if (!item?._id || !item?.pandalId || deletingMemoryId) return;
 
         try {
+            setDeletingMemoryId(item._id);
             const token = await AsyncStorage.getItem("token");
-            const res = await axios.post(
-                buildApiUrl(`/api/pandals/${item.pandalId}/featured/${item._id}/like`),
-                {},
+
+            await axios.delete(
+                buildApiUrl(`/api/pandals/${item.pandalId}/featured/${item._id}`),
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            setFeed((prev) =>
-                prev.map((post) =>
-                    post._id === item._id
-                        ? { ...post, isLiked: res.data.liked, likesCount: res.data.likesCount }
-                        : post
-                )
-            );
+            setFeed((prev) => prev.filter((post) => post._id !== item._id));
         } catch (error) {
-            console.error("Feed like toggle error:", error);
-            setFeed((prev) =>
-                prev.map((post) =>
-                    post._id === item._id
-                        ? { ...post, isLiked: previousLiked, likesCount: previousCount }
-                        : post
-                )
-            );
+            console.error("Feed delete memory failed:", error);
+            Alert.alert("Could not delete memory", "Please try again.");
         } finally {
-            setLikingId(null);
+            setDeletingMemoryId(null);
         }
     };
 
-    const handleNavigate = (item) => {
-        console.log("Navigating to user profile with ID:", item);
-        navigation.navigate("PersonProfile", { userId: item.userId }); 
-    };
-
     const renderItem = ({ item }) => (
-        <View style={styles.postContainer}>
-            {/* Post Header */}
-            <View style={styles.postHeader}>
-                <TouchableOpacity 
-                    style={styles.userInfo} 
-                    activeOpacity={0.7}
-                    onPress={() => handleNavigate(item)}
-                >
-                    <Image
-                        source={{
-                            uri: Array.isArray(item.profileImage)
-                                ? item.profileImage[0]
-                                : item.profileImage || FALLBACK_AVATAR,
-                        }}
-                        style={styles.avatar}
-                    />
-                    <View>
-                        <Text style={styles.username}>{item.username || "User"}</Text>
-                        {item.pandalTitle ? (
-                            <Text style={styles.location}>{item.pandalTitle}</Text>
-                        ) : null}
-                    </View>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.moreOptions}>
-                    <Ionicons name="ellipsis-horizontal" size={20} color="#262626" />
-                </TouchableOpacity>
-            </View>
-
-            {/* Post Image */}
-            <Image source={{ uri: item.url }} style={styles.postImage} resizeMode="cover" />
-
-            {/* Post Actions */}
-            <View style={styles.actionRow}>
-                <View style={styles.leftActions}>
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={styles.actionIcon}
-                        onPress={() => handleToggleLike(item)}
-                        disabled={likingId === item._id}
-                    >
-                        <Ionicons
-                            name={item.isLiked ? "heart" : "heart-outline"}
-                            size={28}
-                            color={item.isLiked ? "#FF3040" : "#262626"}
-                        />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionIcon}>
-                        {/* Changed Feather to Ionicons */}
-                        <Ionicons name="paper-plane-outline" size={26} color="#262626" />
-                    </TouchableOpacity>
-                </View>
-                <TouchableOpacity style={styles.bookmarkIcon}>
-                    {/* Changed Feather to Ionicons */}
-                    <Ionicons name="bookmark-outline" size={26} color="#262626" />
-                </TouchableOpacity>
-            </View>
-
-            {/* Stats: Views & Likes */}
-            <View style={styles.statsContainer}>
-                <Text style={styles.statsText}>
-                    {item.viewsCount?.toLocaleString()} views • {item.likesCount ?? item.likes?.length ?? 0} likes
-                </Text>
-            </View>
-
-            {/* Caption */}
-            {item.caption ? (
-                <View style={styles.captionContainer}>
-                    <Text style={styles.captionText}>
-                        <Text style={styles.captionUsername} onPress={() => handleNavigate(item)}>
-                            {item.username || "User"}{" "}
-                        </Text>
-                        {item.caption}
-                    </Text>
-                </View>
-            ) : null}
-
-            <Text style={styles.timestamp}>2 HOURS AGO</Text>
+        <View style={styles.memoryItem}>
+            <MemoryCard
+                item={item}
+                pandalId={item.pandalId}
+                onDelete={handleDeleteMemory}
+                deleting={deletingMemoryId === item._id}
+                currentUserId={currentUserId}
+            />
         </View>
     );
 
@@ -233,11 +142,18 @@ const FeedScreen = () => {
                 showsVerticalScrollIndicator={false}
                 onEndReached={handleLoadMore}
                 onEndReachedThreshold={0.5}
+                contentContainerStyle={styles.listContent}
                 ListFooterComponent={
-                    loading ? <ActivityIndicator size="small" color="#262626" style={styles.loader} /> : null
+                    loading ? (
+                        <ActivityIndicator size="small" color="#262626" style={styles.loader} />
+                    ) : null
                 }
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#262626" />
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor="#262626"
+                    />
                 }
             />
         </SafeAreaView>
@@ -270,95 +186,12 @@ const styles = StyleSheet.create({
     headerIcon: {
         marginLeft: 20,
     },
-    postContainer: {
-        backgroundColor: "#FFFFFF",
-        paddingBottom: 16,
-        borderBottomWidth: 0.5,
-        borderBottomColor: "#DBDBDB",
-    },
-    postHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-    },
-    userInfo: {
-        flexDirection: "row",
-        alignItems: "center",
-    },
-    avatar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        marginRight: 10,
-        borderWidth: 0.5,
-        borderColor: "#DBDBDB",
-    },
-    username: {
-        fontWeight: "600",
-        fontSize: 13,
-        color: "#262626",
-    },
-    location: {
-        fontSize: 11,
-        color: "#8E8E8E",
-        marginTop: 1,
-    },
-    moreOptions: {
-        paddingHorizontal: 8,
-    },
-    postImage: {
-        width: width,
-        height: width, 
-        backgroundColor: "#FAFAFA",
-    },
-    actionRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingHorizontal: 14,
+    listContent: {
         paddingTop: 12,
-        paddingBottom: 8,
+        paddingBottom: 24,
     },
-    leftActions: {
-        flexDirection: "row",
-        alignItems: "center",
-    },
-    actionIcon: {
-        marginRight: 16,
-    },
-    bookmarkIcon: {
-        marginRight: 0,
-    },
-    statsContainer: {
-        paddingHorizontal: 14,
-        marginBottom: 4,
-    },
-    statsText: {
-        fontWeight: "600",
-        fontSize: 13,
-        color: "#262626",
-    },
-    captionContainer: {
-        paddingHorizontal: 14,
-        marginBottom: 4,
-    },
-    captionText: {
-        fontSize: 13,
-        color: "#262626",
-        lineHeight: 18,
-    },
-    captionUsername: {
-        fontWeight: "600",
-        color: "#262626",
-    },
-    timestamp: {
-        fontSize: 10,
-        color: "#8E8E8E",
-        paddingHorizontal: 14,
-        marginTop: 4,
-        letterSpacing: 0.2,
+    memoryItem: {
+        paddingHorizontal: 12,
     },
     loader: {
         marginVertical: 20,

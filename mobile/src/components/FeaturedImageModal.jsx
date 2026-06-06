@@ -11,6 +11,7 @@ import {
   Platform,
   StatusBar,
   PanResponder,
+  Alert,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import moment from "moment";
@@ -28,6 +29,13 @@ const COLORS = {
   glassBorder: "rgba(255, 255, 255, 0.12)",
 };
 
+const getOwnerId = (memory) => {
+  const owner = memory?.userId;
+  if (!owner) return null;
+  if (typeof owner === "string") return owner;
+  return owner._id || owner.id || null;
+};
+
 const FeaturedImageModal = ({
   visible,
   item,
@@ -35,6 +43,9 @@ const FeaturedImageModal = ({
   liked,
   likesCount,
   onLike,
+  onDelete,
+  deleting,
+  currentUserId,
   onClose,
 }) => {
   const navigation = useNavigation();
@@ -88,7 +99,7 @@ const FeaturedImageModal = ({
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [fadeAnim, slideAnim, translateY, visible]);
 
   const handleClose = () => {
     Animated.parallel([
@@ -126,6 +137,21 @@ const FeaturedImageModal = ({
     onLike();
   };
 
+  const confirmDelete = () => {
+    Alert.alert(
+      "Memory options",
+      "Manage this post.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete memory",
+          style: "destructive",
+          onPress: () => onDelete?.(item),
+        },
+      ]
+    );
+  };
+
   const navigateToProfile = () => {
     handleClose();
     setTimeout(() => {
@@ -134,6 +160,9 @@ const FeaturedImageModal = ({
   };
 
   if (!visible || !item) return null;
+
+  const canManage =
+    item.isOwner || String(getOwnerId(item)) === String(currentUserId);
 
   const backdropOpacity = Animated.multiply(
     fadeAnim,
@@ -178,30 +207,47 @@ const FeaturedImageModal = ({
         </View>
 
         {/* ── User Header ── */}
-        <TouchableOpacity
-          style={styles.userHeader}
-          onPress={navigateToProfile}
-          activeOpacity={0.8}
-        >
-          <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: item.userId?.profileImage?.[0] }}
-              style={styles.avatar}
-            />
-            <View style={styles.avatarGlow} />
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.username}>
-              {item.userId?.username || "Unknown"}
-            </Text>
-            <Text style={styles.timestamp}>
-              {moment(item.createdAt).fromNow()}
-            </Text>
-          </View>
-          <View style={styles.profileArrow}>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-          </View>
-        </TouchableOpacity>
+        <View style={styles.userHeader}>
+          <TouchableOpacity
+            style={styles.userIdentity}
+            onPress={navigateToProfile}
+            activeOpacity={0.8}
+          >
+            <View style={styles.avatarContainer}>
+              <Image
+                source={{ uri: item.userId?.profileImage?.[0] }}
+                style={styles.avatar}
+              />
+              <View style={styles.avatarGlow} />
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.username}>
+                {item.userId?.username || "Unknown"}
+              </Text>
+              <Text style={styles.timestamp}>
+                {moment(item.createdAt).fromNow()}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          {canManage ? (
+            <TouchableOpacity
+              style={styles.ownerDeleteBtn}
+              onPress={confirmDelete}
+              activeOpacity={0.75}
+              disabled={deleting}
+            >
+              <Ionicons
+                name={deleting ? "hourglass-outline" : "ellipsis-horizontal"}
+                size={18}
+                color={COLORS.white}
+              />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.profileArrow}>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+            </View>
+          )}
+        </View>
 
         {/* ── Pandal Badge ── */}
         {pandalTitle && (
@@ -313,6 +359,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
+  userIdentity: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
   avatarContainer: {
     position: "relative",
     marginRight: 12,
@@ -353,6 +404,16 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: COLORS.glassBg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  ownerDeleteBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.glassBg,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
     justifyContent: "center",
     alignItems: "center",
   },

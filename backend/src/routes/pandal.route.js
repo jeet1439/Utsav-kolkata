@@ -30,6 +30,24 @@ function toRad(value) {
   return (value * Math.PI) / 180;
 }
 
+const COMMENT_USER_FIELDS = "username profileImage";
+
+const getUserId = (value) => {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  return value._id || value.id || value;
+};
+
+const serializeComment = (comment, currentUserId) => {
+  const raw = comment.toObject ? comment.toObject() : comment;
+  const ownerId = getUserId(raw.userId);
+
+  return {
+    ...raw,
+    isOwner: ownerId?.toString() === currentUserId.toString(),
+  };
+};
+
 router.get("/nearest", authMiddleware, async (req, res) => {
   try {
     const { latitude, longitude } = req.query;
@@ -175,6 +193,141 @@ router.post("/:pandalId/featured/:pictureId/like", authMiddleware, async (req, r
   }
 });
 
+router.get("/:pandalId/featured/:pictureId/comments", authMiddleware, async (req, res) => {
+  try {
+    const { pandalId, pictureId } = req.params;
+    const userId = req.user._id;
+
+    const pandal = await Pandal.findById(pandalId).populate({
+      path: "featuredPictures.comments.userId",
+      select: COMMENT_USER_FIELDS,
+    });
+    if (!pandal) return res.status(404).json({ message: "Pandal not found" });
+
+    const picture = pandal.featuredPictures.id(pictureId);
+    if (!picture) return res.status(404).json({ message: "Picture not found" });
+
+    const comments = (picture.comments || []).map((comment) =>
+      serializeComment(comment, userId)
+    );
+
+    res.status(200).json({
+      success: true,
+      comments,
+      commentsCount: comments.length,
+    });
+  } catch (error) {
+    console.error("Error fetching comments:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/:pandalId/featured/:pictureId/comments", authMiddleware, async (req, res) => {
+  try {
+    const { pandalId, pictureId } = req.params;
+    const text = String(req.body?.text || "").trim();
+
+    if (!text) {
+      return res.status(400).json({ message: "Comment cannot be empty" });
+    }
+
+    if (text.length > 500) {
+      return res.status(400).json({ message: "Comment must be 500 characters or less" });
+    }
+
+    const pandal = await Pandal.findById(pandalId);
+    if (!pandal) return res.status(404).json({ message: "Pandal not found" });
+
+    const picture = pandal.featuredPictures.id(pictureId);
+    if (!picture) return res.status(404).json({ message: "Picture not found" });
+
+    picture.comments.push({
+      userId: req.user._id,
+      text,
+    });
+
+    const commentId = picture.comments[picture.comments.length - 1]._id;
+    await pandal.save();
+    await pandal.populate({
+      path: "featuredPictures.comments.userId",
+      select: COMMENT_USER_FIELDS,
+    });
+
+    const updatedPicture = pandal.featuredPictures.id(pictureId);
+    const comment = updatedPicture.comments.id(commentId);
+
+    res.status(201).json({
+      success: true,
+      comment: serializeComment(comment, req.user._id),
+      commentsCount: updatedPicture.comments.length,
+    });
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.delete("/:pandalId/featured/:pictureId/comments/:commentId", authMiddleware, async (req, res) => {
+  try {
+    const { pandalId, pictureId, commentId } = req.params;
+    const userId = req.user._id.toString();
+
+    const pandal = await Pandal.findById(pandalId);
+    if (!pandal) return res.status(404).json({ message: "Pandal not found" });
+
+    const picture = pandal.featuredPictures.id(pictureId);
+    if (!picture) return res.status(404).json({ message: "Picture not found" });
+
+    const comment = picture.comments.id(commentId);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+
+    const commentOwnerId = getUserId(comment.userId)?.toString();
+    const memoryOwnerId = getUserId(picture.userId)?.toString();
+    const canDelete = commentOwnerId === userId || memoryOwnerId === userId;
+
+    if (!canDelete) {
+      return res.status(403).json({ message: "You cannot delete this comment" });
+    }
+
+    picture.comments.pull(comment._id);
+    await pandal.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Comment deleted successfully",
+      commentsCount: picture.comments.length,
+    });
+  } catch (error) {
+    console.error("Error deleting comment:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.delete("/:pandalId/featured/:pictureId", authMiddleware, async (req, res) => {
+  try {
+    const { pandalId, pictureId } = req.params;
+    const userId = req.user._id.toString();
+
+    const pandal = await Pandal.findById(pandalId);
+    if (!pandal) return res.status(404).json({ message: "Pandal not found" });
+
+    const picture = pandal.featuredPictures.id(pictureId);
+    if (!picture) return res.status(404).json({ message: "Picture not found" });
+
+    if (picture.userId.toString() !== userId) {
+      return res.status(403).json({ message: "You can only delete your own memory" });
+    }
+
+    pandal.featuredPictures.pull(picture._id);
+    await pandal.save();
+
+    res.status(200).json({ success: true, message: "Memory deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting featured image:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.post("/", async (req, res) => {
   try {
     const { title, about, pictures, latitude, longitude, nearestMetro } = req.body;
@@ -216,7 +369,9 @@ router.get("/:id", authMiddleware, async (req, res) => {
     pandalObj.featuredPictures = pandalObj.featuredPictures.map((pic) => ({
       ...pic,
       likesCount: pic.likes ? pic.likes.length : 0,
+      commentsCount: pic.comments ? pic.comments.length : 0,
       isLiked: pic.likes ? pic.likes.some((id) => id.toString() === userId) : false,
+      isOwner: (pic.userId?._id || pic.userId)?.toString() === userId,
     }));
 
     res.status(200).json(pandalObj);

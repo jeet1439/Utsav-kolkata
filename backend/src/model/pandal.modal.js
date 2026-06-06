@@ -1,12 +1,21 @@
 import mongoose from "mongoose";
 
 
+const CommentSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    text: { type: String, required: true, trim: true, maxlength: 500 },
+  },
+  { timestamps: true }
+);
+
 const FeaturedPictureSchema = new mongoose.Schema(
   {
     url: { type: String, required: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     caption: { type: String },
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    comments: [CommentSchema],
   },
   { timestamps: true }
 );
