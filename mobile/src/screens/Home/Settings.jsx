@@ -4,12 +4,30 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUserStore } from '../../store/userStore';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import axios from 'axios';
+import socket, { SERVER_URL } from '../../store/socketService';
 
 const Settings = ({ navigation }) => {
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('userId');
+      const token = await AsyncStorage.getItem('token');
+      const userId = await AsyncStorage.getItem('userId');
+
+      if (userId) socket.emit('userOffline', userId);
+
+      if (token) {
+        try {
+          await axios.post(
+            `${SERVER_URL}/api/user/offline`,
+            {},
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } catch (offlineErr) {
+          console.log('Failed to mark user offline:', offlineErr?.message || offlineErr);
+        }
+      }
+
+      await AsyncStorage.multiRemove(['token', 'userId']);
       const { clearUser } = useUserStore.getState();
       clearUser();
       navigation.replace('Login');

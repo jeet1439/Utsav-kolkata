@@ -5,8 +5,16 @@ import mongoose from "mongoose";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import multer from "multer";
 import redis from '../redis/redis.js'
+import { ONLINE_USERS_SET, onlineUserKey } from "../constants/presence.js";
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+const NEARBY_RADIUS_METERS = 25000;
+const NEARBY_LIMIT = 50;
+
+const parseCoordinate = (value) => {
+  const coordinate = Number(value);
+  return Number.isFinite(coordinate) ? coordinate : null;
+};
 
 const uploadToCloudinary = (buffer, folder) =>
   new Promise((resolve, reject) => {
@@ -127,6 +135,18 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
+router.post("/offline", authMiddleware, async (req, res) => {
+  try {
+    const userId = String(req.user._id);
+
+    await redis.multi().del(onlineUserKey(userId)).srem(ONLINE_USERS_SET, userId).exec();
+
+    res.json({ success: true, message: "User marked offline" });
+  } catch (error) {
+    console.error("Offline status error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 router.post("/follow/:id", authMiddleware, async (req, res) => {
   try {
 
@@ -225,14 +245,32 @@ router.get("/is-following/:id", authMiddleware, async (req, res) => {
 router.post("/update-location", async (req, res) => {
   try {
     const { userId, latitude, longitude } = req.body;
+    const latitudeNumber = parseCoordinate(latitude);
+    const longitudeNumber = parseCoordinate(longitude);
 
-    await User.findByIdAndUpdate(userId, {
+    if (
+      !mongoose.Types.ObjectId.isValid(userId) ||
+      latitudeNumber === null ||
+      longitudeNumber === null ||
+      latitudeNumber < -90 ||
+      latitudeNumber > 90 ||
+      longitudeNumber < -180 ||
+      longitudeNumber > 180
+    ) {
+      return res.status(400).json({ error: "Valid userId, latitude, and longitude are required" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, {
       location: {
         type: "Point",
-        coordinates: [longitude, latitude],
+        coordinates: [longitudeNumber, latitudeNumber],
       },
       lastActive: new Date(),
     });
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
     res.json({ message: "Location updated" });
   } catch (error) {
@@ -243,39 +281,68 @@ router.post("/update-location", async (req, res) => {
 router.post("/nearby-online", async (req, res) => {
   try {
     const { userId, latitude, longitude } = req.body;
+    const latitudeNumber = parseCoordinate(latitude);
+    const longitudeNumber = parseCoordinate(longitude);
+
+    if (
+      !mongoose.Types.ObjectId.isValid(userId) ||
+      latitudeNumber === null ||
+      longitudeNumber === null ||
+      latitudeNumber < -90 ||
+      latitudeNumber > 90 ||
+      longitudeNumber < -180 ||
+      longitudeNumber > 180
+    ) {
+      return res.status(400).json({ error: "Valid userId, latitude, and longitude are required" });
+    }
+
+    const onlineUserIds = await redis.smembers(ONLINE_USERS_SET);
+    const validOnlineUserIds = onlineUserIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+    const onlineStatuses = validOnlineUserIds.length
+      ? await redis.mget(...validOnlineUserIds.map((id) => onlineUserKey(id)))
+      : [];
+    const activeOnlineUserIds = validOnlineUserIds.filter((id, index) => onlineStatuses[index] === "true");
+    const staleOnlineUserIds = validOnlineUserIds.filter((id, index) => onlineStatuses[index] !== "true");
+
+    if (staleOnlineUserIds.length) {
+      await redis.srem(ONLINE_USERS_SET, ...staleOnlineUserIds);
+    }
+
+    const currentUserId = new mongoose.Types.ObjectId(userId);
+    const activeOnlineObjectIds = activeOnlineUserIds
+      .filter((id) => id !== userId)
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    if (!activeOnlineObjectIds.length) {
+      return res.json([]);
+    }
 
     const nearbyUsers = await User.aggregate([
       {
         $geoNear: {
           near: {
             type: "Point",
-            coordinates: [longitude, latitude],
+            coordinates: [longitudeNumber, latitudeNumber],
           },
           distanceField: "distance", 
-          maxDistance: 25000,
+          maxDistance: NEARBY_RADIUS_METERS,
           spherical: true,
           query: {
-            _id: { $ne: new mongoose.Types.ObjectId(userId) },
+            _id: { $in: activeOnlineObjectIds, $ne: currentUserId },
           },
         },
       },
-      { $limit: 50 },
+      { $limit: NEARBY_LIMIT },
     ]);
 
-    const usersWithOnline = await Promise.all(
-      nearbyUsers.map(async (user) => {
-        const isOnline = await redis.get(`online:${user._id}`);
-
-        return {
-          _id: user._id,
-          name: user.username,
-          avatar: user.profileImage[0],
-          bio: user.bio,
-          isOnline: isOnline === "true",
-          distance: (user.distance / 1000).toFixed(2), // convert meters to km
-        };
-      })
-    );
+    const usersWithOnline = nearbyUsers.map((user) => ({
+      _id: user._id,
+      name: user.username,
+      avatar: user.profileImage[0],
+      bio: user.bio,
+      isOnline: true,
+      distance: Number((user.distance / 1000).toFixed(2)),
+    }));
 
     res.json(usersWithOnline);
   } catch (error) {

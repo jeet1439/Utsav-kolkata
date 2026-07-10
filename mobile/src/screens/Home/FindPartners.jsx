@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -38,6 +38,13 @@ const C = {
   border: "#FFE4E8",
 };
 
+const PARTNERS_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+const GEOLOCATION_OPTIONS = {
+  enableHighAccuracy: true,
+  timeout: 15000,
+  maximumAge: 10000,
+};
+
 const formatDistance = (dist=1) => {
   if (dist === undefined || dist === null) return "Unknown";
   if (dist < 1) return `${Math.round(dist * 1000)}m away`;
@@ -53,7 +60,7 @@ const OnlineToggle = ({ isOnline, onToggle }) => {
       tension: 80,
       friction: 10,
     }).start();
-  }, [isOnline]);
+  }, [anim, isOnline]);
 
   const translateX = anim.interpolate({
     inputRange: [0, 1],
@@ -132,7 +139,7 @@ const PartnerCard = ({ item, index, onConnect, onMessage, navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fade, index, slide]);
 
   return (
     <Animated.View
@@ -321,29 +328,128 @@ const FindPartners = ({ navigation }) => {
 
   const spinVal = useRef(new Animated.Value(0)).current;
   const locationIntervalRef = useRef(null);
+  const isOnlineRef = useRef(isOnline);
+
+  const updateLocation = useCallback(async (coords) => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      const latitude = Number(coords?.latitude);
+      const longitude = Number(coords?.longitude);
+
+      if (!userId || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+
+      await axios.post(`${SERVER_URL}/api/user/update-location`, {
+        userId,
+        latitude,
+        longitude,
+      });
+    } catch (e) {
+      console.log(e);
+    }
+  }, []);
+
+  const fetchPartners = useCallback(async (coords, { showLoader = true } = {}) => {
+    try {
+      if (showLoader) setLoading(true);
+      const userId = await AsyncStorage.getItem("userId");
+      const latitude = Number(coords?.latitude);
+      const longitude = Number(coords?.longitude);
+
+      if (!userId || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        setPartners([]);
+        return;
+      }
+
+      const res = await axios.post(`${SERVER_URL}/api/user/nearby-online`, {
+        userId,
+        latitude,
+        longitude,
+      });
+      // demo purposes
+      setPartners(res.data);
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const refreshLocationAndPartners = useCallback(({ showLoader = true, alertOnError = false } = {}) => {
+    Geolocation.getCurrentPosition(
+      async (position) => {
+        const coords = position.coords;
+        setLocation(coords);
+        await updateLocation(coords);
+        if (isOnlineRef.current) {
+          const userId = await AsyncStorage.getItem("userId");
+          if (userId) socket.emit("userOnline", userId);
+        }
+        fetchPartners(coords, { showLoader });
+      },
+      (error) => {
+        console.log("Location refresh error:", error.message);
+        if (alertOnError) Alert.alert("Location Error", error.message);
+        setLoading(false);
+      },
+      GEOLOCATION_OPTIONS
+    );
+  }, [fetchPartners, updateLocation]);
+
+  const getLocation = useCallback(async () => {
+    try {
+      if (Platform.OS === "android") {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert("Permission required", "Location permission needed");
+          setLoading(false);
+          return;
+        }
+      }
+      refreshLocationAndPartners({ alertOnError: true });
+    } catch (err) {
+      console.log(err);
+      setLoading(false);
+    }
+  }, [refreshLocationAndPartners]);
+
+  const init = useCallback(async () => {
+    const userId = await AsyncStorage.getItem("userId");
+    if (userId) socket.emit("userOnline", userId);
+    getLocation();
+  }, [getLocation]);
+
+  useEffect(() => {
+    isOnlineRef.current = isOnline;
+  }, [isOnline]);
 
   useEffect(() => {
     init();
-  }, []);
+  }, [init]);
 
-  // Handle online/offline status changes and location updates in ery 5 minutes when online
+  useEffect(() => {
+    if (!isOnline) return;
+
+    const markOnline = async () => {
+      const userId = await AsyncStorage.getItem("userId");
+      if (userId) socket.emit("userOnline", userId);
+    };
+
+    socket.on("connect", markOnline);
+    if (socket.connected) markOnline();
+
+    return () => {
+      socket.off("connect", markOnline);
+    };
+  }, [isOnline]);
+
+  // Handle online/offline status changes and nearby people refresh every 10 minutes.
   useEffect(() => {
     if (isOnline) {
-      // Update location immediately when coming online
-      if (location) updateLocation(location);
-
-      locationIntervalRef.current = setInterval(async () => {
-        Geolocation.getCurrentPosition(
-          async (position) => {
-            const coords = position.coords;
-            setLocation(coords);
-            await updateLocation(coords);
-            // console.log("location refreshed");
-          },
-          (error) => console.log("Interval location error:", error.message),
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-        );
-      }, 300000);
+      locationIntervalRef.current = setInterval(() => {
+        refreshLocationAndPartners({ showLoader: false });
+      }, PARTNERS_REFRESH_INTERVAL_MS);
     } else {
       if (locationIntervalRef.current) {
         clearInterval(locationIntervalRef.current);
@@ -357,70 +463,7 @@ const FindPartners = ({ navigation }) => {
         locationIntervalRef.current = null;
       }
     };
-  }, [isOnline]);
-
-  const init = async () => {
-    const userId = await AsyncStorage.getItem("userId");
-    if (userId) socket.emit("userOnline", userId);
-    getLocation();
-  };
-
-  const getLocation = async () => {
-    try {
-      if (Platform.OS === "android") {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert("Permission required", "Location permission needed");
-          return;
-        }
-      }
-      Geolocation.getCurrentPosition(
-        async (position) => {
-          const coords = position.coords;
-          setLocation(coords);
-          await updateLocation(coords);
-          fetchPartners(coords);
-        },
-        (error) => Alert.alert("Location Error", error.message),
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-      );
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const updateLocation = async (coords) => {
-    try {
-      const userId = await AsyncStorage.getItem("userId");
-      await axios.post(`${SERVER_URL}/api/user/update-location`, {
-        userId,
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-      });
-    } catch (e) {
-      console.log(e);
-    }
-  };
-
-  const fetchPartners = async (coords) => {
-    try {
-      setLoading(true);
-      const userId = await AsyncStorage.getItem("userId");
-      const res = await axios.post(`${SERVER_URL}/api/user/nearby-online`, {
-        userId,
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-      });
-      // demo purposes
-      setPartners(res.data);
-    } catch (e) {
-      console.log(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isOnline, refreshLocationAndPartners]);
 
   const handleRefresh = () => {
     if (!location) return;
@@ -430,7 +473,7 @@ const FindPartners = ({ navigation }) => {
       duration: 600,
       useNativeDriver: true,
     }).start();
-    fetchPartners(location);
+    refreshLocationAndPartners({ alertOnError: true });
   };
 
   const handleToggleOnline = async () => {
@@ -457,6 +500,7 @@ const FindPartners = ({ navigation }) => {
       // User wants to go online - Do it immediately
       setIsOnline(true);
       socket.emit("userOnline", userId);
+      getLocation();
     }
   };
 
@@ -531,16 +575,7 @@ const FindPartners = ({ navigation }) => {
             partners.length === 0 ? [S.list, { flex: 1 }] : S.list
           }
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={() => (
-            <View style={S.emptyStateWrap}>
-              <Ionicons name="people-outline" size={50} color={C.textLight} />
-              <Text style={S.emptyStateTitle}>No one is nearby</Text>
-              <Text style={S.emptyStateSub}>
-                There are no users online in your area right now. Try refreshing
-                or check back later!
-              </Text>
-            </View>
-          )}
+          ListEmptyComponent={EmptyPartners}
           renderItem={({ item, index }) => (
             <PartnerCard
               item={item}
@@ -645,5 +680,16 @@ const S = StyleSheet.create({
     lineHeight: 22,
   },
 });
+
+const EmptyPartners = () => (
+  <View style={S.emptyStateWrap}>
+    <Ionicons name="people-outline" size={50} color={C.textLight} />
+    <Text style={S.emptyStateTitle}>No one is nearby</Text>
+    <Text style={S.emptyStateSub}>
+      There are no users online in your area right now. Try refreshing or check
+      back later!
+    </Text>
+  </View>
+);
 
 export default FindPartners;

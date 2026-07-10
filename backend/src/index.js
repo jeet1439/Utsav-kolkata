@@ -9,6 +9,7 @@ import chatRoutes from './routes/chat.routes.js';
 import notificationRoutes from './routes/notification.route.js';
 import feedRoutes from './routes/feed.routes.js';
 import redis from '../src/redis/redis.js';
+import { ONLINE_TTL_SECONDS, ONLINE_USERS_SET, onlineUserKey } from './constants/presence.js';
 import { Server } from "socket.io";
 import http from "http";
 import Message from './model/message.model.js';
@@ -46,6 +47,10 @@ const io = new Server(server, {
 
 app.set("io", io);
 
+const markUserOffline = async (userId) => {
+  await redis.multi().del(onlineUserKey(userId)).srem(ONLINE_USERS_SET, userId).exec();
+};
+
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
@@ -54,12 +59,19 @@ io.on("connection", (socket) => {
   // ── Online / Offline tracking (existing) ──────────────────────
   socket.on("userOnline", async (userId) => {
     currentUserId = userId;
-    await redis.set(`online:${userId}`, "true", "EX", 300);
+    await redis
+      .multi()
+      .set(onlineUserKey(userId), "true", "EX", ONLINE_TTL_SECONDS)
+      .sadd(ONLINE_USERS_SET, userId)
+      .exec();
     console.log(`User ${userId} online`);
   });
 
   socket.on("userOffline", async (userId) => {
-    await redis.del(`online:${userId}`);
+    if (!currentUserId || String(currentUserId) !== String(userId)) return;
+
+    await markUserOffline(userId);
+    currentUserId = null;
     console.log(`User ${userId} offline`);
   });
 
@@ -118,8 +130,10 @@ io.on("connection", (socket) => {
   // ── Disconnect ────────────────────────────────────────────────
   socket.on("disconnect", async () => {
     if (currentUserId) {
-      await redis.del(`online:${currentUserId}`);
-      console.log("User disconnected:", currentUserId);
+      const disconnectedUserId = currentUserId;
+      currentUserId = null;
+      await markUserOffline(disconnectedUserId);
+      console.log("User disconnected:", disconnectedUserId);
     }
   });
 });
